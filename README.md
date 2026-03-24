@@ -56,7 +56,7 @@ The final report must contain:
 statements for creation and populating of the summary tables. Specification of of batch job to load 
 data in pre-aggregated summaries.  
 7. [ ] A description of Data Warehouse queries and front-ends required for the warehouse.  
-8. Some example scenarios of how various types of users will interact with the system.  
+8. [ ] Some example scenarios of how various types of users will interact with the system.  
 9. [ ] A description of alternative implementation of your DW system using two NoSQL platforms. 
 10. [ ] A decription of dockerization of your project. 
 11. [ ] A description of your data streaming functionality. 
@@ -67,7 +67,7 @@ demo, and must be prepared to explain and demonstrate those aspects of the proje
 responsible. The source code for the project should be available on-line during the demonstration.
 
 **Some specific questions and answers:**
- 
+
 1. For the front-end solution, are we thinking correctly if there should be four 'sites', one where 
 you choose the type of database, and three additional for each database type? More precise, 
 should there be an individual UI for MySQL, Neo4j, and MongoDB? 
