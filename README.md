@@ -62,7 +62,7 @@ The compose stack expects `DB_USERNAME` and `DB_PASSWORD` in `.env`.
 Install dependencies:
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 Current SDK dependencies:
