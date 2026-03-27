@@ -1,0 +1,79 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: ikt453_mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: mydatabase
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - ikt453_mysql_data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin:5.2
+    container_name: ikt453_phpmyadmin
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: ${DB_USERNAME}
+      PMA_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "8080:80"
+
+  mongodb:
+    image: mongo:7
+    container_name: ikt453_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${DB_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "27017:27017"
+    volumes:
+      - ikt453_mongodb_data:/data/db
+
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: ikt453_mongo_express
+    restart: always
+    depends_on:
+      - mongodb
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://${DB_USERNAME}:${DB_PASSWORD}@mongodb:27017/admin?authSource=admin
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${DB_USERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${DB_PASSWORD}
+      ME_CONFIG_BASICAUTH_USERNAME: ${DB_USERNAME}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${DB_PASSWORD}
+      ME_CONFIG_MONGODB_SERVER: mongodb
+    ports:
+      - "8081:8081"
+
+  neo4j:
+    image: neo4j:5.26
+    container_name: ikt453_neo4j
+    restart: always
+    environment:
+      NEO4J_AUTH: neo4j/${DB_PASSWORD}
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - ikt453_neo4j_data:/data
+      - ikt453_neo4j_logs:/logs
+      - ikt453_neo4j_config:/config
+      - ikt453_neo4j_plugins:/plugins
+
+volumes:
+  ikt453_mysql_data:
+  ikt453_mongodb_data:
+  ikt453_neo4j_data:
+  ikt453_neo4j_logs:
+  ikt453_neo4j_config:
+  ikt453_neo4j_plugins:
