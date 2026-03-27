@@ -1,3 +1,39 @@
+# How to run
+```
+docker compose up -d 
+```
+- Access Mongo-Express (MongdoDB) at : http://localhost:8081/
+- Access PHPMyAdmin (MySQL) at : http://localhost:8080/
+- Access Neo4j at : http://localhost:7474/
+
+# Whats done
+- [x] DBMS Installed (Docker Compose)
+- [x] DBMS Dashboard (Docker Compose)
+
+# Next Up
+- [ ] Relational Schema Design (MySQL)
+    - Types of users (e.g administrators, analysts, etc)
+    - Assumptiosn about the system
+    - Description of the data maintained 
+    - Description of loading & cleaning process 
+    - Description of STAR schema + SQL statements
+    - Description of FACT schema + DDL statements
+    - Description of pre-aggregated summary tables & batch job + DDL & SQL Statements
+- [ ] Alternative Schema Design (MongoDB)
+- [ ] Alternative Schema Design (Neo4j)
+- [ ] Typical workflows
+    - Description of Data Warehouse queries 
+
+    
+
+# Unclear
+- Front-ends required for the warehouse
+
+# Additions / Not Required
+- [ ] Use kSQL
+
+# Task
+
 IKT553: Intelligent Database Management 
 Instructor:  Vladimir Zadorozhny (http://www.pitt.edu/~viz/) 
 e-mail: viz@pitt.edu 
