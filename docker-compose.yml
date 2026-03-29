@@ -12,6 +12,8 @@ services:
       - "3306:3306"
     volumes:
       - ikt453_mysql_data:/var/lib/mysql
+      - ./sql/mysql/001_star_schema.sql:/docker-entrypoint-initdb.d/001_star_schema.sql:ro
+      - ./sql/mysql/002_summary_tables.sql:/docker-entrypoint-initdb.d/002_summary_tables.sql:ro
 
   phpmyadmin:
     image: phpmyadmin:5.2
