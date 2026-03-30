@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS dim_player (
     first_name VARCHAR(100) NOT NULL,
     family_name VARCHAR(100) NOT NULL,
     display_name VARCHAR(200) NOT NULL,
-    name_initial VARCHAR(20),
+    name_initial VARCHAR(50),
     player_slug VARCHAR(150),
     primary_position VARCHAR(10),
     jersey_number VARCHAR(10)

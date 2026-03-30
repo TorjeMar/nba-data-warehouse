@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from src.etl.transform import chunked, iter_records, summarize_records
+from tqdm import tqdm
 
 
 def parse_args() -> argparse.Namespace:
@@ -53,11 +54,18 @@ def load_mysql(input_path: str, batch_size: int, limit: int | None) -> int:
 
     loaded = 0
     connection = connect_mysql()
+
+    total = limit if limit is not None else None
+
     try:
-        for batch in chunked(iter_records(input_path, limit=limit), batch_size):
-            loaded += load_mysql_records(connection, batch)
+        with tqdm(total=total, desc="Loading MySQL", unit="rows") as pbar:
+            for batch in chunked(iter_records(input_path, limit=limit), batch_size):
+                batch_loaded = load_mysql_records(connection, batch)
+                loaded += batch_loaded
+                pbar.update(len(batch))
     finally:
         connection.close()
+
     return loaded
 
 

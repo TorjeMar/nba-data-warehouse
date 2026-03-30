@@ -23,6 +23,7 @@ Status key:
 - [x] Dataset download helper script
 - [x] Shared ETL transformation layer for the basketball box score dataset
 - [x] ETL loaders for MySQL, MongoDB, and Neo4j
+- [ ] Add correct handling for inorrect time entry (see warnings when loading entire dataset using mysql)
 - [-] Source-to-warehouse enrichment for game date, season, matchup, and home/away metadata
 - [ ] Scheduled batch jobs for recurring warehouse loads
 - [ ] Streaming/Kafka-based data ingestion
@@ -33,7 +34,7 @@ Status key:
 - [x] Fact table definition
 - [x] Dimension table definitions
 - [x] Pre-aggregated summary table definitions
-- [ ] SQL load scripts or bootstrap scripts that automatically apply schema files
+- [x] MySQL schema initialization via Docker Compose (`/docker-entrypoint-initdb.d`)
 - [ ] Verified end-to-end load into a live MySQL container
 - [ ] Relational analytical query set for the final report/demo
 
@@ -45,6 +46,8 @@ Status key:
 - [x] Neo4j alternative warehouse design
 - [x] Neo4j constraints and load shape
 - [x] Neo4j analytical query examples
+- [ ] MongoDB schema/bootstrap initialization (collections, indexes, validators)
+- [ ] Neo4j schema/bootstrap initialization (constraints, indexes, seed data)
 - [ ] Verified end-to-end load into a live MongoDB container
 - [ ] Verified end-to-end load into a live Neo4j container
 - [ ] Explicit comparison dataset/results across all three backends

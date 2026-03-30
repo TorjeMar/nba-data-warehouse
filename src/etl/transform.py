@@ -34,11 +34,32 @@ def _parse_minutes_to_seconds(value: Any) -> int:
     raw = _normalize_string(value)
     if not raw:
         return 0
-    parts = raw.split(":")
-    if len(parts) != 2:
-        return 0
-    minutes, seconds = parts
-    return int(minutes) * 60 + int(seconds)
+
+    raw = raw.strip()
+
+    import re
+
+    # Normal case: MM:SS
+    match = re.fullmatch(r"(\d+):(\d{1,2})", raw)
+    if match:
+        minutes, seconds = match.groups()
+        return int(minutes) * 60 + int(seconds)
+
+    # Repair malformed values like "0:0-57" -> "0:57"
+    repaired = raw.replace("-", "")
+    match = re.fullmatch(r"(\d+):(\d{1,2})", repaired)
+    if match:
+        minutes, seconds = match.groups()
+        return int(minutes) * 60 + int(seconds)
+
+    # Last-resort extraction of first plausible MM:SS pattern
+    match = re.search(r"(\d+):(\d{1,2})", repaired)
+    if match:
+        minutes, seconds = match.groups()
+        return int(minutes) * 60 + int(seconds)
+
+    print(f"Warning: invalid minutes value {raw!r}, defaulting to 0")
+    return 0
 
 
 def _display_name(first_name: str | None, family_name: str | None, fallback: str | None) -> str:
