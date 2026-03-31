@@ -23,7 +23,7 @@ Status key:
 - [x] Dataset download helper script
 - [x] Shared ETL transformation layer for the basketball box score dataset
 - [x] ETL loaders for MySQL, MongoDB, and Neo4j
-- [ ] Add correct handling for inorrect time entry (see warnings when loading entire dataset using mysql)
+- [x] Add correct handling for inorrect time entry (see warnings when loading entire dataset using mysql)
 - [-] Source-to-warehouse enrichment for game date, season, matchup, and home/away metadata
 - [ ] Scheduled batch jobs for recurring warehouse loads
 - [ ] Streaming/Kafka-based data ingestion
