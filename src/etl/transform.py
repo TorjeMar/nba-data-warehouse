@@ -58,7 +58,14 @@ def _parse_minutes_to_seconds(value: Any) -> int:
         minutes, seconds = match.groups()
         return int(minutes) * 60 + int(seconds)
 
+    # Accept digits-only minute values like "23" as 23:00.
+    match = re.fullmatch(r"(\d+)", repaired)
+    if match:
+        minutes = match.group(1)
+        return int(minutes) * 60
+    
     print(f"Warning: invalid minutes value {raw!r}, defaulting to 0")
+    
     return 0
 
 
