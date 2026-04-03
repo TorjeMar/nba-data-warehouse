@@ -22,8 +22,8 @@ Important detail:
 - the ETL layer flattens each game payload into one player stat line per row
 
 Reference files:
-- [notes/data.md](/home/abraham/uni/ikt453/project/v1/notes/data.md#L1)
-- [data.example/entry.json](/home/abraham/uni/ikt453/project/v1/data.example/entry.json#L1)
+- [notes/data.md](notes/data.md#L1)
+- [data.example/entry.json](data.example/entry.json#L1)
 
 ## Project Structure
 
@@ -75,8 +75,8 @@ Current SDK dependencies:
 ### MySQL
 
 Main schema files:
-- [001_star_schema.sql](/home/abraham/uni/ikt453/project/v1/sql/mysql/001_star_schema.sql#L1)
-- [002_summary_tables.sql](/home/abraham/uni/ikt453/project/v1/sql/mysql/002_summary_tables.sql#L1)
+- [001_star_schema.sql](sql/mysql/001_star_schema.sql#L1)
+- [002_summary_tables.sql](sql/mysql/002_summary_tables.sql#L1)
 
 Design grain:
 - one player stat line for one game and one team
@@ -92,9 +92,9 @@ Core tables:
 ### MongoDB
 
 Main design files:
-- [001_document_model.js](/home/abraham/uni/ikt453/project/v1/sql/mongodb/001_document_model.js#L1)
-- [002_indexes.js](/home/abraham/uni/ikt453/project/v1/sql/mongodb/002_indexes.js#L1)
-- [003_aggregations.js](/home/abraham/uni/ikt453/project/v1/sql/mongodb/003_aggregations.js#L1)
+- [001_document_model.js](sql/mongodb/001_document_model.js#L1)
+- [002_indexes.js](sql/mongodb/002_indexes.js#L1)
+- [003_aggregations.js](sql/mongodb/003_aggregations.js#L1)
 
 Design grain:
 - one document per player stat line for one game and one team
@@ -105,10 +105,10 @@ Primary collection:
 ### Neo4j
 
 Main design files:
-- [001_constraints.cypher](/home/abraham/uni/ikt453/project/v1/sql/neo4j/001_constraints.cypher#L1)
-- [002_graph_model.cypher](/home/abraham/uni/ikt453/project/v1/sql/neo4j/002_graph_model.cypher#L1)
-- [003_analytics.cypher](/home/abraham/uni/ikt453/project/v1/sql/neo4j/003_analytics.cypher#L1)
-- [004_load_shape.cypher](/home/abraham/uni/ikt453/project/v1/sql/neo4j/004_load_shape.cypher#L1)
+- [001_constraints.cypher](sql/neo4j/001_constraints.cypher#L1)
+- [002_graph_model.cypher](sql/neo4j/002_graph_model.cypher#L1)
+- [003_analytics.cypher](sql/neo4j/003_analytics.cypher#L1)
+- [004_load_shape.cypher](sql/neo4j/004_load_shape.cypher#L1)
 
 Design grain:
 - one `PLAYED_IN` relationship per player, game, and team
@@ -116,7 +116,7 @@ Design grain:
 ## ETL
 
 Main pipeline:
-- [load_box_scores.py](/home/abraham/uni/ikt453/project/v1/src/pipelines/load_box_scores.py#L1)
+- [load_box_scores.py](src/pipelines/load_box_scores.py#L1)
 
 Dry-run the transform layer without touching any database:
 
@@ -160,9 +160,9 @@ Important assumptions:
 ## Documentation
 
 Documentation index:
-- [docs/README.md](/home/abraham/uni/ikt453/project/v1/docs/README.md#L1)
-- [docs/architecture/README.md](/home/abraham/uni/ikt453/project/v1/docs/architecture/README.md#L1)
-- [src/etl/README.md](/home/abraham/uni/ikt453/project/v1/src/etl/README.md#L1)
+- [docs/README.md](docs/README.md#L1)
+- [docs/architecture/README.md](docs/architecture/README.md#L1)
+- [src/etl/README.md](src/etl/README.md#L1)
 
 ## Course Notes
 

@@ -37,8 +37,8 @@ Relational warehouse pattern:
 - separate summary tables for common aggregate workloads
 
 Main files:
-- [001_star_schema.sql](/home/abraham/uni/ikt453/project/v1/sql/mysql/001_star_schema.sql#L1)
-- [002_summary_tables.sql](/home/abraham/uni/ikt453/project/v1/sql/mysql/002_summary_tables.sql#L1)
+- [001_star_schema.sql](sql/mysql/001_star_schema.sql#L1)
+- [002_summary_tables.sql](sql/mysql/002_summary_tables.sql#L1)
 
 ### MongoDB
 
@@ -49,9 +49,9 @@ Document warehouse pattern:
 - aggregation pipelines for materialized summaries
 
 Main files:
-- [001_document_model.js](/home/abraham/uni/ikt453/project/v1/sql/mongodb/001_document_model.js#L1)
-- [002_indexes.js](/home/abraham/uni/ikt453/project/v1/sql/mongodb/002_indexes.js#L1)
-- [003_aggregations.js](/home/abraham/uni/ikt453/project/v1/sql/mongodb/003_aggregations.js#L1)
+- [001_document_model.js](sql/mongodb/001_document_model.js#L1)
+- [002_indexes.js](sql/mongodb/002_indexes.js#L1)
+- [003_aggregations.js](sql/mongodb/003_aggregations.js#L1)
 
 ### Neo4j
 
@@ -62,10 +62,10 @@ Graph warehouse pattern:
 - Cypher queries for analytical rollups
 
 Main files:
-- [001_constraints.cypher](/home/abraham/uni/ikt453/project/v1/sql/neo4j/001_constraints.cypher#L1)
-- [002_graph_model.cypher](/home/abraham/uni/ikt453/project/v1/sql/neo4j/002_graph_model.cypher#L1)
-- [003_analytics.cypher](/home/abraham/uni/ikt453/project/v1/sql/neo4j/003_analytics.cypher#L1)
-- [004_load_shape.cypher](/home/abraham/uni/ikt453/project/v1/sql/neo4j/004_load_shape.cypher#L1)
+- [001_constraints.cypher](sql/neo4j/001_constraints.cypher#L1)
+- [002_graph_model.cypher](sql/neo4j/002_graph_model.cypher#L1)
+- [003_analytics.cypher](sql/neo4j/003_analytics.cypher#L1)
+- [004_load_shape.cypher](sql/neo4j/004_load_shape.cypher#L1)
 
 ## ETL Flow
 
@@ -77,9 +77,9 @@ The ETL process has four stages:
 4. Load that record into MySQL, MongoDB, or Neo4j.
 
 Main files:
-- [transform.py](/home/abraham/uni/ikt453/project/v1/src/etl/transform.py#L1)
-- [models.py](/home/abraham/uni/ikt453/project/v1/src/etl/models.py#L1)
-- [load_box_scores.py](/home/abraham/uni/ikt453/project/v1/src/pipelines/load_box_scores.py#L1)
+- [transform.py](src/etl/transform.py#L1)
+- [models.py](src/etl/models.py#L1)
+- [load_box_scores.py](src/pipelines/load_box_scores.py#L1)
 
 ## Current Gaps
 

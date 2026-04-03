@@ -7,11 +7,11 @@ The ETL layer handles that in two stages:
 - transform each row into a shared warehouse record used by all three backends
 
 Main files:
-- [transform.py](/home/abraham/uni/ikt453/project/v1/src/etl/transform.py#L1)
-- [models.py](/home/abraham/uni/ikt453/project/v1/src/etl/models.py#L1)
-- [load_mysql.py](/home/abraham/uni/ikt453/project/v1/src/etl/load_mysql.py#L1)
-- [load_mongodb.py](/home/abraham/uni/ikt453/project/v1/src/etl/load_mongodb.py#L1)
-- [load_neo4j.py](/home/abraham/uni/ikt453/project/v1/src/etl/load_neo4j.py#L1)
+- [transform.py](src/etl/transform.py#L1)
+- [models.py](src/etl/models.py#L1)
+- [load_mysql.py](src/etl/load_mysql.py#L1)
+- [load_mongodb.py](src/etl/load_mongodb.py#L1)
+- [load_neo4j.py](src/etl/load_neo4j.py#L1)
 
 Entry point:
 - `python -m src.pipelines.load_box_scores --backend mysql --limit 100`
