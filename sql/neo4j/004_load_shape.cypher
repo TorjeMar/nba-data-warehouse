@@ -5,7 +5,7 @@ MERGE (team:Team {sourceTeamId: $sourceTeamId})
 SET team.teamName = $teamName,
     team.teamCity = $teamCity,
     team.teamTricode = $teamTricode,
-    team.teamSlug = $teamSlug;
+    team.teamSlug = $teamSlug
 
 MERGE (player:Player {sourcePersonId: $sourcePersonId})
 SET player.firstName = $firstName,
@@ -13,14 +13,14 @@ SET player.firstName = $firstName,
     player.displayName = $displayName,
     player.nameInitial = $nameInitial,
     player.playerSlug = $playerSlug,
-    player.jerseyNumber = $jerseyNumber;
+    player.jerseyNumber = $jerseyNumber
 
-MERGE (position:Position {positionCode: coalesce($positionCode, "")});
-MERGE (player)-[:HAS_POSITION]->(position);
+MERGE (position:Position {positionCode: coalesce($positionCode, "")})
+MERGE (player)-[:HAS_POSITION]->(position)
 
 MERGE (game:Game {sourceGameId: $sourceGameId})
 SET game.seasonLabel = $seasonLabel,
-    game.matchupLabel = $matchupLabel;
+    game.matchupLabel = $matchupLabel
 
 FOREACH (_ IN CASE WHEN $gameDate IS NULL THEN [] ELSE [1] END |
   MERGE (date:Date {dateKey: $dateKey})
@@ -34,9 +34,9 @@ FOREACH (_ IN CASE WHEN $gameDate IS NULL THEN [] ELSE [1] END |
       date.dayOfWeekName = $dayOfWeekName,
       date.isWeekend = $isWeekend
   MERGE (game)-[:ON_DATE]->(date)
-);
+)
 
-MERGE (player)-[:REPRESENTED_TEAM]->(team);
+MERGE (player)-[:REPRESENTED_TEAM]->(team)
 
 MERGE (player)-[played:PLAYED_IN {sourceGameId: $sourceGameId, sourceTeamId: $sourceTeamId}]->(game)
 SET played.minutesPlayedSeconds = $minutesPlayedSeconds,
@@ -60,4 +60,4 @@ SET played.minutesPlayedSeconds = $minutesPlayedSeconds,
     played.points = $points,
     played.plusMinusPoints = $plusMinusPoints,
     played.playerStatusComment = $playerStatusComment,
-    played.updatedAt = datetime();
+    played.updatedAt = datetime()

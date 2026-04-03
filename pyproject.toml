@@ -8,4 +8,6 @@ dependencies = [
     "mysql-connector-python>=9.0.0",
     "neo4j>=5.28.0",
     "pymongo>=4.10.0",
+    "python-dotenv>=1.2.2",
+    "tqdm>=4.67.3",
 ]

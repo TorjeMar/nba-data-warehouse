@@ -4,7 +4,7 @@ services:
     container_name: ikt453_mysql
     restart: always
     environment:
-      MYSQL_DATABASE: mydatabase
+      MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
@@ -34,12 +34,16 @@ services:
     container_name: ikt453_mongodb
     restart: unless-stopped
     environment:
+      MONGO_INITDB_DATABASE: ${DB_NAME}
       MONGO_INITDB_ROOT_USERNAME: ${DB_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${DB_PASSWORD}
     ports:
       - "27017:27017"
     volumes:
       - ikt453_mongodb_data:/data/db
+      - ./sql/mongodb/001_document_model.js:/docker-entrypoint-initdb.d/001_document_model.js:ro
+      - ./sql/mongodb/002_indexes.js:/docker-entrypoint-initdb.d/002_indexes.js:ro
+
 
   mongo-express:
     image: mongo-express:1.0.2

@@ -90,7 +90,7 @@ db.createCollection("player_game_stats", {
             turnovers: { bsonType: ["int", "long"] },
             foulsPersonal: { bsonType: ["int", "long"] },
             points: { bsonType: ["int", "long"] },
-            plusMinusPoints: { bsonType: ["int", "long"] }
+            plusMinusPoints: { bsonType: ["int", "long", "double"] }
           }
         },
         playerStatusComment: {
