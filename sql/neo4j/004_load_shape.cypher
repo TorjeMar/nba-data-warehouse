@@ -1,63 +1,66 @@
-// Canonical load shape for one source record.
-// Replace parameter names with ETL-provided values during ingestion.
+// Canonical load shape for batched records.
+// Expects parameter payload: { rows: [ { ...record params... }, ... ] }
 
-MERGE (team:Team {sourceTeamId: $sourceTeamId})
-SET team.teamName = $teamName,
-    team.teamCity = $teamCity,
-    team.teamTricode = $teamTricode,
-    team.teamSlug = $teamSlug
+UNWIND $rows AS row
 
-MERGE (player:Player {sourcePersonId: $sourcePersonId})
-SET player.firstName = $firstName,
-    player.familyName = $familyName,
-    player.displayName = $displayName,
-    player.nameInitial = $nameInitial,
-    player.playerSlug = $playerSlug,
-    player.jerseyNumber = $jerseyNumber
+MERGE (team:Team {sourceTeamId: row.sourceTeamId})
+SET team.teamName = row.teamName,
+    team.teamCity = row.teamCity,
+    team.teamTricode = row.teamTricode,
+    team.teamSlug = row.teamSlug
 
-MERGE (position:Position {positionCode: coalesce($positionCode, "")})
+MERGE (player:Player {sourcePersonId: row.sourcePersonId})
+SET player.firstName = row.firstName,
+    player.familyName = row.familyName,
+    player.displayName = row.displayName,
+    player.nameInitial = row.nameInitial,
+    player.playerSlug = row.playerSlug,
+    player.jerseyNumber = row.jerseyNumber
+
+MERGE (position:Position {positionCode: coalesce(row.positionCode, "")})
 MERGE (player)-[:HAS_POSITION]->(position)
 
-MERGE (game:Game {sourceGameId: $sourceGameId})
-SET game.seasonLabel = $seasonLabel,
-    game.matchupLabel = $matchupLabel
+MERGE (game:Game {sourceGameId: row.sourceGameId})
+SET game.seasonLabel = row.seasonLabel,
+    game.matchupLabel = row.matchupLabel
 
-FOREACH (_ IN CASE WHEN $gameDate IS NULL THEN [] ELSE [1] END |
-  MERGE (date:Date {dateKey: $dateKey})
-  SET date.fullDate = date($gameDate),
-      date.yearNum = $yearNum,
-      date.monthNum = $monthNum,
-      date.monthName = $monthName,
-      date.quarterNum = $quarterNum,
-      date.dayOfMonth = $dayOfMonth,
-      date.dayOfWeekNum = $dayOfWeekNum,
-      date.dayOfWeekName = $dayOfWeekName,
-      date.isWeekend = $isWeekend
+FOREACH (_ IN CASE WHEN row.gameDate IS NULL THEN [] ELSE [1] END |
+  MERGE (date:Date {dateKey: row.dateKey})
+  SET date.fullDate = date(row.gameDate),
+      date.yearNum = row.yearNum,
+      date.monthNum = row.monthNum,
+      date.monthName = row.monthName,
+      date.quarterNum = row.quarterNum,
+      date.dayOfMonth = row.dayOfMonth,
+      date.dayOfWeekNum = row.dayOfWeekNum,
+      date.dayOfWeekName = row.dayOfWeekName,
+      date.isWeekend = row.isWeekend
   MERGE (game)-[:ON_DATE]->(date)
 )
 
 MERGE (player)-[:REPRESENTED_TEAM]->(team)
 
-MERGE (player)-[played:PLAYED_IN {sourceGameId: $sourceGameId, sourceTeamId: $sourceTeamId}]->(game)
-SET played.minutesPlayedSeconds = $minutesPlayedSeconds,
-    played.fieldGoalsMade = $fieldGoalsMade,
-    played.fieldGoalsAttempted = $fieldGoalsAttempted,
-    played.fieldGoalsPercentage = $fieldGoalsPercentage,
-    played.threePointersMade = $threePointersMade,
-    played.threePointersAttempted = $threePointersAttempted,
-    played.threePointersPercentage = $threePointersPercentage,
-    played.freeThrowsMade = $freeThrowsMade,
-    played.freeThrowsAttempted = $freeThrowsAttempted,
-    played.freeThrowsPercentage = $freeThrowsPercentage,
-    played.reboundsOffensive = $reboundsOffensive,
-    played.reboundsDefensive = $reboundsDefensive,
-    played.reboundsTotal = $reboundsTotal,
-    played.assists = $assists,
-    played.steals = $steals,
-    played.blocks = $blocks,
-    played.turnovers = $turnovers,
-    played.foulsPersonal = $foulsPersonal,
-    played.points = $points,
-    played.plusMinusPoints = $plusMinusPoints,
-    played.playerStatusComment = $playerStatusComment,
+MERGE (player)-[played:PLAYED_IN {sourceGameId: row.sourceGameId, sourceTeamId: row.sourceTeamId}]->(game)
+SET played.homeAway = row.homeAway,
+    played.minutesPlayedSeconds = row.minutesPlayedSeconds,
+    played.fieldGoalsMade = row.fieldGoalsMade,
+    played.fieldGoalsAttempted = row.fieldGoalsAttempted,
+    played.fieldGoalsPercentage = row.fieldGoalsPercentage,
+    played.threePointersMade = row.threePointersMade,
+    played.threePointersAttempted = row.threePointersAttempted,
+    played.threePointersPercentage = row.threePointersPercentage,
+    played.freeThrowsMade = row.freeThrowsMade,
+    played.freeThrowsAttempted = row.freeThrowsAttempted,
+    played.freeThrowsPercentage = row.freeThrowsPercentage,
+    played.reboundsOffensive = row.reboundsOffensive,
+    played.reboundsDefensive = row.reboundsDefensive,
+    played.reboundsTotal = row.reboundsTotal,
+    played.assists = row.assists,
+    played.steals = row.steals,
+    played.blocks = row.blocks,
+    played.turnovers = row.turnovers,
+    played.foulsPersonal = row.foulsPersonal,
+    played.points = row.points,
+    played.plusMinusPoints = row.plusMinusPoints,
+    played.playerStatusComment = row.playerStatusComment,
     played.updatedAt = datetime()
