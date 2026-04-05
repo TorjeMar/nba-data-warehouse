@@ -9,6 +9,14 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator
 
 from src.etl.models import WarehouseRecord
+from src.etl.game_metadata import (
+    _GAMES_DICT,
+    get_game_date,
+    get_game_season,
+    get_home_or_away,
+    get_matchup_type,
+    get_team_game_metadata,
+)
 
 
 def _normalize_string(value: Any) -> str | None:
@@ -101,10 +109,22 @@ def iter_source_rows(input_path: str | Path) -> Iterator[dict[str, Any]]:
                 yield row
 
 
+def build_metadata(row: dict[str, Any], games_dict: dict[str, list[dict]]) -> dict[str, Any]:
+    game_id = str(row["gameId"])
+    source_team_id = _to_int(row.get("teamId"))
+    game_metadata = get_team_game_metadata(game_id, source_team_id, games_dict)
+    return {
+        "season_label": get_game_season(game_metadata) or "",
+        "game_date": get_game_date(game_metadata),
+        "matchup_label": get_matchup_type(game_metadata) or "",
+        "home_away": get_home_or_away(game_metadata) or "",
+    }
+
 def build_record(row: dict[str, Any]) -> WarehouseRecord:
     first_name = _normalize_string(row.get("firstName")) or ""
     family_name = _normalize_string(row.get("familyName")) or ""
     display_name = _display_name(first_name, family_name, _normalize_string(row.get("nameI")))
+    metadata = build_metadata(row, games_dict=_GAMES_DICT)
     record = WarehouseRecord(
         source_game_id=str(row["gameId"]),
         source_team_id=_to_int(row.get("teamId")),
@@ -142,6 +162,7 @@ def build_record(row: dict[str, Any]) -> WarehouseRecord:
         fouls_personal=_to_int(row.get("foulsPersonal")),
         points=_to_int(row.get("points")),
         plus_minus_points=float(row.get("plusMinusPoints") or 0.0),
+        **metadata
     )
     record.source_row_hash = build_row_hash(record)
     return record

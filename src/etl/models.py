@@ -50,6 +50,7 @@ class WarehouseRecord:
     season_label: str | None = None
     game_date: datetime | None = None
     matchup_label: str | None = None
+    home_away: str | None = None
     source_row_hash: str | None = None
 
     def mysql_fact_params(self) -> dict[str, Any]:
@@ -86,7 +87,7 @@ class WarehouseRecord:
         return {
             "sourceGameId": self.source_game_id,
             "seasonLabel": self.season_label,
-            "gameDate": self.game_date,
+            "gameDate": self.game_date.strftime("%Y-%m-%d") if self.game_date else None,
             "team": {
                 "sourceTeamId": self.source_team_id,
                 "teamCity": self.team_city,
@@ -104,6 +105,8 @@ class WarehouseRecord:
                 "position": self.position_code,
                 "jerseyNumber": self.jersey_number,
             },
+            "matchupLabel": self.matchup_label,
+            "homeAway": self.home_away,
             "stats": {
                 "minutesPlayedSeconds": self.minutes_played_seconds,
                 "fieldGoalsMade": self.field_goals_made,
@@ -133,8 +136,8 @@ class WarehouseRecord:
         }
 
     def neo4j_params(self) -> dict[str, Any]:
-        game_date = self.game_date.date().isoformat() if self.game_date else None
-        date_key = int(self.game_date.strftime("%Y%m%d")) if self.game_date else None
+        game_date = self.game_date
+        date_key = int(game_date.strftime("%Y%m%d")) if game_date else None
         return {
             "sourceGameId": self.source_game_id,
             "sourceTeamId": self.source_team_id,
@@ -153,6 +156,7 @@ class WarehouseRecord:
             "jerseyNumber": self.jersey_number,
             "seasonLabel": self.season_label,
             "matchupLabel": self.matchup_label,
+            "homeAway": self.home_away,
             "gameDate": game_date,
             "dateKey": date_key,
             "yearNum": self.game_date.year if self.game_date else None,

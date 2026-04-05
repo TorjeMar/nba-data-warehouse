@@ -40,15 +40,53 @@ ON DUPLICATE KEY UPDATE
     jersey_number = VALUES(jersey_number)
 """
 
+MYSQL_UPSERT_DATE = """
+INSERT INTO dim_date (
+    date_key, full_date, day_of_month, month_num, month_name, quarter_num,
+    year_num, day_of_week_num, day_of_week_name, is_weekend
+) VALUES (
+    %(date_key)s, %(full_date)s, %(day_of_month)s, %(month_num)s, %(month_name)s, %(quarter_num)s,
+    %(year_num)s, %(day_of_week_num)s, %(day_of_week_name)s, %(is_weekend)s
+)
+ON DUPLICATE KEY UPDATE
+    full_date = VALUES(full_date),
+    day_of_month = VALUES(day_of_month),
+    month_num = VALUES(month_num),
+    month_name = VALUES(month_name),
+    quarter_num = VALUES(quarter_num),
+    year_num = VALUES(year_num),
+    day_of_week_num = VALUES(day_of_week_num),
+    day_of_week_name = VALUES(day_of_week_name),
+    is_weekend = VALUES(is_weekend)
+"""
+
 MYSQL_UPSERT_GAME = """
 INSERT INTO dim_game (
-    source_game_id, season_label, matchup_label
+    source_game_id, season_label, game_date_key, matchup_label, home_team_key, away_team_key
 ) VALUES (
-    %(source_game_id)s, %(season_label)s, %(matchup_label)s
+    %(source_game_id)s, %(season_label)s, %(game_date_key)s, %(matchup_label)s, %(home_team_key)s, %(away_team_key)s
 )
 ON DUPLICATE KEY UPDATE
     season_label = COALESCE(VALUES(season_label), season_label),
-    matchup_label = COALESCE(VALUES(matchup_label), matchup_label)
+    game_date_key = COALESCE(VALUES(game_date_key), game_date_key),
+    matchup_label = COALESCE(VALUES(matchup_label), matchup_label),
+    home_team_key = COALESCE(VALUES(home_team_key), home_team_key),
+    away_team_key = COALESCE(VALUES(away_team_key), away_team_key)
+"""
+
+MYSQL_UPDATE_GAME_HOME_AWAY_KEY = """
+UPDATE dim_game g
+JOIN dim_team t ON t.source_team_id = %(source_team_id)s
+SET
+    g.home_team_key = CASE
+        WHEN %(home_away)s = 'home' THEN t.team_key
+        ELSE g.home_team_key
+    END,
+    g.away_team_key = CASE
+        WHEN %(home_away)s = 'away' THEN t.team_key
+        ELSE g.away_team_key
+    END
+WHERE g.source_game_id = %(source_game_id)s
 """
 
 MYSQL_UPSERT_FACT = """
@@ -145,6 +183,23 @@ def load_mysql_records(connection: MySQLConnection, records: Iterable[WarehouseR
     loaded = 0
     try:
         for record in records:
+            date_params = None
+            game_date_key = None
+            if record.game_date is not None:
+                game_date_key = int(record.game_date.strftime("%Y%m%d"))
+                date_params = {
+                    "date_key": game_date_key,
+                    "full_date": record.game_date.date().isoformat(),
+                    "day_of_month": record.game_date.day,
+                    "month_num": record.game_date.month,
+                    "month_name": record.game_date.strftime("%B"),
+                    "quarter_num": ((record.game_date.month - 1) // 3) + 1,
+                    "year_num": record.game_date.year,
+                    "day_of_week_num": record.game_date.isoweekday(),
+                    "day_of_week_name": record.game_date.strftime("%A"),
+                    "is_weekend": record.game_date.isoweekday() >= 6,
+                }
+
             team_params = {
                 "source_team_id": record.source_team_id,
                 "team_tricode": record.team_tricode,
@@ -166,10 +221,21 @@ def load_mysql_records(connection: MySQLConnection, records: Iterable[WarehouseR
                 "source_game_id": record.source_game_id,
                 "season_label": record.season_label,
                 "matchup_label": record.matchup_label,
+                "home_team_key": None,
+                "away_team_key": None,
+                "game_date_key": game_date_key,
+            }
+            game_key_params = {
+                "source_game_id": record.source_game_id,
+                "source_team_id": record.source_team_id,
+                "home_away": record.home_away,
             }
             cursor.execute(MYSQL_UPSERT_TEAM, team_params)
             cursor.execute(MYSQL_UPSERT_PLAYER, player_params)
+            if date_params is not None:
+                cursor.execute(MYSQL_UPSERT_DATE, date_params)
             cursor.execute(MYSQL_UPSERT_GAME, game_params)
+            cursor.execute(MYSQL_UPDATE_GAME_HOME_AWAY_KEY, game_key_params)
             cursor.execute(MYSQL_UPSERT_FACT, record.mysql_fact_params())
             loaded += 1
         connection.commit()
