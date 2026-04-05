@@ -87,7 +87,7 @@ class WarehouseRecord:
         return {
             "sourceGameId": self.source_game_id,
             "seasonLabel": self.season_label,
-            "gameDate": self.game_date.strftime("%Y-%m-%d") if self.game_date else None,
+            "gameDate": self.game_date,
             "team": {
                 "sourceTeamId": self.source_team_id,
                 "teamCity": self.team_city,

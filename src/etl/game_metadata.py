@@ -137,6 +137,6 @@ def get_home_or_away(row: dict) -> str | None:
 
 
 _GAMES_DICT = build_games_dict(
-    [f"{year}-{str(year + 1)[-2:]}" for year in range(2000, 2025)],
+    [f"{year}-{str(year + 1)[-2:]}" for year in range(2000, 2026)],
     ["Regular Season", "Playoffs", "Pre Season", "All Star", "PlayIn"],
 )
