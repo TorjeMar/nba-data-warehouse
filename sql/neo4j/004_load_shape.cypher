@@ -42,7 +42,7 @@ MERGE (player)-[:REPRESENTED_TEAM]->(team)
 
 MERGE (player)-[played:PLAYED_IN {sourceGameId: row.sourceGameId, sourceTeamId: row.sourceTeamId}]->(game)
 SET played.homeAway = row.homeAway,
-    played.minutesPlayedSeconds = row.minutesPlayedSeconds,
+    played.secondsPlayed = row.minutesPlayedSeconds,
     played.fieldGoalsMade = row.fieldGoalsMade,
     played.fieldGoalsAttempted = row.fieldGoalsAttempted,
     played.fieldGoalsPercentage = row.fieldGoalsPercentage,
