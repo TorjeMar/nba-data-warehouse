@@ -24,6 +24,16 @@ Backend loads:
 - `python -m src.pipelines.load_box_scores --backend mongodb`
 - `python -m src.pipelines.load_box_scores --backend neo4j`
 
+Data Enrichment:
+
+When fields are missing from box score payloads (for example game date, matchup, and home/away context), the ETL loads supplemental game metadata from nba_api season files during `load_box_scores`.
+If a season/season_type file does not exist and the API returns no rows, the pipeline writes an explicit empty JSON file ([]) so future runs skip repeated fetch attempts.
+After season metadata is available, the transform step enriches each player-game record with:
+- game_date
+- season_label
+- matchup_label
+- home_away (team-perspective, derived from matchup metadata)
+
 Notes:
 - the transformation layer does not require live database connections for `--dry-run`
 - game date and season attributes are modeled but currently not present in the source payload

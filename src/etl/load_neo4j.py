@@ -15,9 +15,13 @@ LOAD_QUERY = (PROJECT_ROOT / "sql" / "neo4j" / "004_load_shape.cypher").read_tex
 
 
 def load_neo4j_records(driver: Driver, records: Iterable[WarehouseRecord]) -> int:
-    loaded = 0
+    rows = [record.neo4j_params() for record in records]
+    if not rows:
+        return 0
+
     with driver.session() as session:
-        for record in records:
-            session.execute_write(lambda tx, params: tx.run(LOAD_QUERY, params), record.neo4j_params())
-            loaded += 1
-    return loaded
+        session.execute_write(
+            lambda tx, payload: tx.run(LOAD_QUERY, rows=payload).consume(),
+            rows,
+        )
+    return len(rows)

@@ -26,7 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=1000,
+        default=5000,
         help="Number of player records to transform per batch.",
     )
     parser.add_argument(
