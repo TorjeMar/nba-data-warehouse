@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -46,7 +46,7 @@ class WarehouseRecord:
     turnovers: int
     fouls_personal: int
     points: int
-    plus_minus_points: float
+    plus_minus_points: int
     season_label: str | None = None
     game_date: datetime | None = None
     matchup_label: str | None = None
@@ -77,7 +77,7 @@ class WarehouseRecord:
             "turnovers": self.turnovers,
             "fouls_personal": self.fouls_personal,
             "points": self.points,
-            "plus_minus_points": int(round(self.plus_minus_points)),
+            "plus_minus_points": self.plus_minus_points,
             "player_status_comment": self.player_status_comment,
             "source_row_hash": self.source_row_hash,
         }
@@ -128,8 +128,8 @@ class WarehouseRecord:
             },
             "playerStatusComment": self.player_status_comment,
             "sourceRowHash": self.source_row_hash,
-            "createdAt": datetime.utcnow(),
-            "updatedAt": datetime.utcnow(),
+            "createdAt": datetime.now(timezone.utc),
+            "updatedAt": datetime.now(timezone.utc),
         }
 
     def neo4j_params(self) -> dict[str, Any]:
