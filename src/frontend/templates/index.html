@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Basketball Data Warehouse{% endblock %}
+
+{% block content %}
+<h1>Basketball Data Warehouse</h1>
+<h2>Choose a database implementation</h2>
+
+<div class="cards">
+    <a class="card" href="/mysql">
+        <h3>MySQL</h3>
+        <p>Relational star schema with fact and dimension tables</p>
+    </a>
+
+    <a class="card" href="/mongodb">
+        <h3>MongoDB</h3>
+        <p>Document-oriented model with embedded statistics</p>
+    </a>
+
+    <a class="card" href="/neo4j">
+        <h3>Neo4j</h3>
+        <p>Graph model with player-game relationships</p>
+    </a>
+</div>
+{% endblock %}

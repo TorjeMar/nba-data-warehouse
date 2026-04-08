@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}{{ db | upper }} - Years{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="/">Home</a><span>/</span><a href="/{{ db }}">{{ db | upper }}</a><span>/</span>Year
+</div>
+
+<h1>{{ db | upper }} — Year Statistics</h1>
+
+{% if rows %}
+<table>
+    <thead>
+        <tr>
+            {% for col in columns %}
+            <th>{{ col }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        <tr>
+            {% for val in row %}
+            <td>{{ val }}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="placeholder">
+    <p>No data yet — add your query in app.py</p>
+    <code>see the {{ db }}_year_query() function</code>
+</div>
+{% endif %}
+{% endblock %}
