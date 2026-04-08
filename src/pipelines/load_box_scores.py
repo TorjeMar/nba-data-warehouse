@@ -60,8 +60,7 @@ def load_mysql(input_path: str, batch_size: int, limit: int | None) -> int:
     try:
         with tqdm(total=total, desc="Loading MySQL", unit="rows") as pbar:
             for batch in chunked(iter_records(input_path, limit=limit), batch_size):
-                batch_loaded = load_mysql_records(connection, batch)
-                loaded += batch_loaded
+                loaded += load_mysql_records(connection, batch)
                 pbar.update(len(batch))
     finally:
         connection.close()
@@ -75,8 +74,10 @@ def load_mongodb(input_path: str, batch_size: int, limit: int | None) -> int:
 
     loaded = 0
     database = connect_mongodb()
-    for batch in chunked(iter_records(input_path, limit=limit), batch_size):
-        loaded += load_mongodb_records(database, batch)
+    with tqdm(total=limit, desc="Loading MongoDB", unit="rows") as pbar:
+        for batch in chunked(iter_records(input_path, limit=limit), batch_size):
+            loaded += load_mongodb_records(database, batch)
+            pbar.update(len(batch))
     return loaded
 
 
@@ -87,8 +88,10 @@ def load_neo4j(input_path: str, batch_size: int, limit: int | None) -> int:
     loaded = 0
     driver = connect_neo4j()
     try:
-        for batch in chunked(iter_records(input_path, limit=limit), batch_size):
-            loaded += load_neo4j_records(driver, batch)
+        with tqdm(total=limit, desc="Loading Neo4j", unit="rows") as pbar:
+            for batch in chunked(iter_records(input_path, limit=limit), batch_size):
+                loaded += load_neo4j_records(driver, batch)
+                pbar.update(len(batch))
     finally:
         driver.close()
     return loaded
