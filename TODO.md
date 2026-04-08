@@ -35,7 +35,7 @@ Status key:
 - [x] Dimension table definitions
 - [x] Pre-aggregated summary table definitions
 - [x] MySQL schema initialization via Docker Compose (`/docker-entrypoint-initdb.d`)
-- [ ] Verified end-to-end load into a live MySQL container
+- [x] Verified end-to-end load into a live MySQL container
 - [ ] Relational analytical query set for the final report/demo
 
 ### NoSQL Alternatives
@@ -46,10 +46,10 @@ Status key:
 - [x] Neo4j alternative warehouse design
 - [x] Neo4j constraints and load shape
 - [x] Neo4j analytical query examples
-- [ ] MongoDB schema/bootstrap initialization (collections, indexes, validators)
-- [ ] Neo4j schema/bootstrap initialization (constraints, indexes, seed data)
-- [ ] Verified end-to-end load into a live MongoDB container
-- [ ] Verified end-to-end load into a live Neo4j container
+- [x] MongoDB schema/bootstrap initialization (collections, indexes, validators)
+- [x] Neo4j schema/bootstrap initialization (constraints, indexes, seed data)
+- [x] Verified end-to-end load into a live MongoDB container
+- [x] Verified end-to-end load into a live Neo4j container
 - [ ] Explicit comparison dataset/results across all three backends
 
 ### Documentation
