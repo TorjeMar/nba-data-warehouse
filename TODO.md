@@ -77,7 +77,8 @@ This section maps the course requirements to current status.
 - [ ] User types and access patterns are not defined yet
 
 2. A list of assumptions made about the system
-- [ ] Not documented as a dedicated assumptions list yet
+- [-] Dedicated assumptions section exists with seeded assumptions
+- [ ] Final report-quality assumptions write-up is still pending
 
 3. A description of the data maintained in the system
 - [-] Dataset and source fields are documented
@@ -93,9 +94,9 @@ This section maps the course requirements to current status.
 - [ ] Live validation in MySQL is still pending
 
 6. Pre-aggregated summary tables, DDL, SQL population statements, and batch jobs
-- [-] Summary table DDL exists
-- [ ] SQL population scripts are not implemented yet
-- [ ] Batch job specification is not implemented yet
+- [x] Summary table DDL exists
+- [x] SQL population scripts are implemented
+- [-] Batch refresh script/specification exists; recurring scheduled orchestration is still pending
 
 7. A description of warehouse queries and frontends required for the warehouse
 - [-] Some analytical queries exist for Neo4j and MongoDB summaries
