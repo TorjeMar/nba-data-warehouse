@@ -179,9 +179,19 @@ ON DUPLICATE KEY UPDATE
 
 
 def load_mysql_records(connection: MySQLConnection, records: Iterable[WarehouseRecord]) -> int:
+    records = list(records)
+    if not records:
+        return 0
+
     cursor = connection.cursor()
-    loaded = 0
     try:
+        team_rows: dict[int, dict[str, object]] = {}
+        player_rows: dict[int, dict[str, object]] = {}
+        date_rows: dict[int, dict[str, object]] = {}
+        game_rows: dict[str, dict[str, object]] = {}
+        game_key_rows: dict[tuple[str, int], dict[str, object]] = {}
+        fact_rows: list[dict[str, object]] = []
+
         for record in records:
             date_params = None
             game_date_key = None
@@ -200,14 +210,14 @@ def load_mysql_records(connection: MySQLConnection, records: Iterable[WarehouseR
                     "is_weekend": record.game_date.isoweekday() >= 6,
                 }
 
-            team_params = {
+            team_rows[record.source_team_id] = {
                 "source_team_id": record.source_team_id,
                 "team_tricode": record.team_tricode,
                 "team_name": record.team_name,
                 "team_city": record.team_city,
                 "team_slug": record.team_slug,
             }
-            player_params = {
+            player_rows[record.source_person_id] = {
                 "source_person_id": record.source_person_id,
                 "first_name": record.first_name,
                 "family_name": record.family_name,
@@ -217,7 +227,10 @@ def load_mysql_records(connection: MySQLConnection, records: Iterable[WarehouseR
                 "position_code": record.position_code or "",
                 "jersey_number": record.jersey_number,
             }
-            game_params = {
+            if date_params is not None:
+                date_rows[game_date_key] = date_params
+
+            game_rows[record.source_game_id] = {
                 "source_game_id": record.source_game_id,
                 "season_label": record.season_label,
                 "matchup_label": record.matchup_label,
@@ -225,23 +238,27 @@ def load_mysql_records(connection: MySQLConnection, records: Iterable[WarehouseR
                 "away_team_key": None,
                 "game_date_key": game_date_key,
             }
-            game_key_params = {
+
+            game_key_rows[(record.source_game_id, record.source_team_id)] = {
                 "source_game_id": record.source_game_id,
                 "source_team_id": record.source_team_id,
                 "home_away": record.home_away,
             }
-            cursor.execute(MYSQL_UPSERT_TEAM, team_params)
-            cursor.execute(MYSQL_UPSERT_PLAYER, player_params)
-            if date_params is not None:
-                cursor.execute(MYSQL_UPSERT_DATE, date_params)
-            cursor.execute(MYSQL_UPSERT_GAME, game_params)
-            cursor.execute(MYSQL_UPDATE_GAME_HOME_AWAY_KEY, game_key_params)
-            cursor.execute(MYSQL_UPSERT_FACT, record.mysql_fact_params())
-            loaded += 1
+
+            fact_rows.append(record.mysql_fact_params())
+
+        cursor.executemany(MYSQL_UPSERT_TEAM, list(team_rows.values()))
+        cursor.executemany(MYSQL_UPSERT_PLAYER, list(player_rows.values()))
+        if date_rows:
+            cursor.executemany(MYSQL_UPSERT_DATE, list(date_rows.values()))
+        cursor.executemany(MYSQL_UPSERT_GAME, list(game_rows.values()))
+        cursor.executemany(MYSQL_UPDATE_GAME_HOME_AWAY_KEY, list(game_key_rows.values()))
+        for fact_row in fact_rows:
+            cursor.execute(MYSQL_UPSERT_FACT, fact_row)
         connection.commit()
     except Exception:
         connection.rollback()
         raise
     finally:
         cursor.close()
-    return loaded
+    return len(records)
