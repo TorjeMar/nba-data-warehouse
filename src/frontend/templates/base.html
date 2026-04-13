@@ -8,117 +8,155 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
+            background: #f0f2f5;
             color: #222;
             min-height: 100vh;
         }
         nav {
-            background: #fff;
-            padding: 0.9rem 2rem;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            padding: 0 2rem;
             display: flex;
             align-items: center;
-            gap: 2rem;
-            border-bottom: 1px solid #ddd;
+            gap: 0;
+            border-bottom: 1px solid #dbe1ea;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
         nav a {
-            color: #555;
+            color: #5f6773;
             text-decoration: none;
-            font-weight: 500;
-            font-size: 0.95rem;
+            font-weight: 600;
+            font-size: 0.88rem;
+            padding: 1rem 1.1rem;
+            border-bottom: 2px solid transparent;
+            transition: color 0.15s, border-color 0.15s;
         }
-        nav a:hover { color: #111; }
+        nav a:hover {
+            color: #174ea6;
+            border-bottom-color: #174ea6;
+        }
         nav .brand {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #111;
-            letter-spacing: -0.02em;
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #152033;
+            letter-spacing: -0.03em;
+            padding: 1rem 0;
+            margin-right: 1.2rem;
+            border-bottom: none;
         }
         .container {
-            max-width: 860px;
+            max-width: 960px;
             margin: 0 auto;
             padding: 2.5rem 2rem;
         }
         h1 {
-            font-size: 1.5rem;
-            font-weight: 700;
+            font-size: 1.6rem;
+            font-weight: 800;
             margin-bottom: 0.4rem;
-            color: #111;
+            color: #152033;
         }
         h2 {
             font-size: 0.95rem;
             font-weight: 400;
             margin-bottom: 1.5rem;
-            color: #777;
+            color: #5f6773;
         }
         .cards {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.2rem;
         }
         .card {
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border: 1px solid #d8dce3;
+            border-radius: 18px;
+            padding: 1.8rem;
             text-decoration: none;
             color: #222;
-            transition: border-color 0.15s, box-shadow 0.15s;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        }
+        .card::after {
+            content: "";
+            position: absolute;
+            inset: 0 auto auto 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #174ea6 0%, #f59e0b 100%);
         }
         .card:hover {
-            border-color: #999;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            transform: translateY(-3px);
+            border-color: #aeb8c7;
+            box-shadow: 0 18px 34px rgba(15, 23, 42, 0.12);
         }
         .card h3 {
-            font-size: 1.05rem;
-            font-weight: 600;
-            margin-bottom: 0.35rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+            color: #152033;
         }
         .card p {
-            color: #888;
-            font-size: 0.85rem;
-            line-height: 1.4;
+            color: #5f6773;
+            font-size: 0.88rem;
+            line-height: 1.5;
         }
         .breadcrumb {
             margin-bottom: 1.2rem;
-            color: #999;
+            color: #8a8f98;
             font-size: 0.85rem;
         }
-        .breadcrumb a { color: #555; text-decoration: none; }
-        .breadcrumb a:hover { color: #111; }
-        .breadcrumb span { margin: 0 0.3rem; }
+        .breadcrumb a {
+            color: #174ea6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .breadcrumb a:hover { color: #0d3a7a; }
+        .breadcrumb span { margin: 0 0.35rem; color: #c0c5ce; }
         table {
             width: 100%;
             border-collapse: collapse;
             background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+            border: 1px solid #d8dce3;
+            border-radius: 18px;
             overflow: hidden;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
         }
         th, td {
-            padding: 0.6rem 1rem;
+            padding: 0.75rem 1rem;
             text-align: left;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #e7ecf2;
             font-size: 0.9rem;
         }
         th {
-            background: #fafafa;
-            font-weight: 600;
-            color: #444;
-            border-bottom: 1px solid #ddd;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            font-weight: 700;
+            color: #3d4654;
+            border-bottom: 1px solid #d8dce3;
+            font-size: 0.82rem;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        tr:hover td {
+            background: #f8fafc;
         }
         .placeholder {
-            background: #fff;
-            border: 1px dashed #ccc;
-            border-radius: 8px;
-            padding: 2.5rem;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border: 1px dashed #c0c5ce;
+            border-radius: 18px;
+            padding: 3rem;
             text-align: center;
-            color: #999;
-            font-size: 0.9rem;
+            color: #8a8f98;
+            font-size: 0.92rem;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
         }
         .placeholder code {
             display: block;
-            margin-top: 0.4rem;
-            color: #555;
+            margin-top: 0.5rem;
+            color: #5f6773;
             font-size: 0.85rem;
         }
     </style>

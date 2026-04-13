@@ -7,31 +7,194 @@
     <a href="/">Home</a><span>/</span><a href="/{{ db }}">{{ db | upper }}</a><span>/</span>Team
 </div>
 
-<h1>{{ db | upper }} — Team Statistics</h1>
+<div class="page-hero">
+    <p class="page-kicker">{{ db | upper }} &middot; Franchise View</p>
+    <h1>{{ page_title or "Team Statistics" }}</h1>
+    <p class="page-subtitle">{{ page_intro or "Browse the warehouse by franchise." }}</p>
+</div>
 
 {% if rows %}
-<table>
-    <thead>
-        <tr>
-            {% for col in columns %}
-            <th>{{ col }}</th>
-            {% endfor %}
-        </tr>
-    </thead>
-    <tbody>
-        {% for row in rows %}
-        <tr>
-            {% for val in row %}
-            <td>{{ val }}</td>
-            {% endfor %}
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="teams-grid">
+    {% for team in rows %}
+    <a class="team-card" href="/{{ db }}/team/{{ team.id }}">
+        <div class="team-header">
+            <div>
+                <p class="team-kicker">{{ team.tricode }}</p>
+                <h2>{{ team.name }}</h2>
+            </div>
+            <span class="team-pill">{{ team.years|length }} yr</span>
+        </div>
+        <div class="team-preview">
+            <span class="team-link">View details</span>
+            <span class="team-arrow">&rarr;</span>
+        </div>
+    </a>
+    {% endfor %}
+    {% if show_other_card %}
+    <a class="team-card team-card-other" href="/{{ db }}/team/other">
+        <div class="team-header">
+            <div>
+                <p class="team-kicker">OTHER</p>
+                <h2>Other Teams</h2>
+            </div>
+            <span class="team-pill team-pill-muted">{{ other_teams_count }} teams</span>
+        </div>
+        <div class="team-preview">
+            <span class="team-link">See non-NBA regular-season teams</span>
+            <span class="team-arrow">&rarr;</span>
+        </div>
+    </a>
+    {% endif %}
+</div>
 {% else %}
 <div class="placeholder">
     <p>No data yet — add your query in app.py</p>
-    <code>see the {{ db }}_team_query() function</code>
+    <code>see the {{ db }}_get_teams_query() function</code>
 </div>
 {% endif %}
+
+<style>
+    .page-hero {
+        margin-bottom: 1.8rem;
+        padding: 1.8rem;
+        border-radius: 22px;
+        background:
+            radial-gradient(circle at top right, rgba(23, 78, 166, 0.10), transparent 34%),
+            linear-gradient(180deg, #ffffff 0%, #f5f8fc 100%);
+        border: 1px solid #dbe1ea;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
+    }
+
+    .page-kicker {
+        margin: 0 0 0.6rem;
+        color: #174ea6;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .page-subtitle {
+        max-width: 540px;
+        margin: 0.5rem 0 0;
+        color: #5f6773;
+        font-size: 0.98rem;
+        line-height: 1.5;
+    }
+
+    .teams-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+    }
+
+    .team-card {
+        display: block;
+        text-decoration: none;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid #d8dce3;
+        border-radius: 18px;
+        padding: 22px;
+        cursor: pointer;
+        background:
+            radial-gradient(circle at top right, rgba(27, 99, 194, 0.08), transparent 34%),
+            linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .team-card:hover {
+        transform: translateY(-3px);
+        border-color: #aeb8c7;
+        box-shadow: 0 18px 34px rgba(15, 23, 42, 0.12);
+    }
+
+    .team-card::after {
+        content: "";
+        position: absolute;
+        inset: 0 auto auto 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, #174ea6 0%, #f59e0b 100%);
+    }
+
+    .team-card-other::after {
+        background: linear-gradient(90deg, #475569 0%, #94a3b8 100%);
+    }
+
+    .team-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .team-header h2 {
+        margin: 0;
+        font-size: 1.12rem;
+        font-weight: 700;
+        line-height: 1.25;
+        color: #152033;
+    }
+
+    .team-kicker {
+        margin: 0 0 6px;
+        color: #174ea6;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .team-pill {
+        flex-shrink: 0;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #eef4ff;
+        color: #25457a;
+        font-size: 0.76rem;
+        font-weight: 700;
+    }
+
+    .team-pill-muted {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .team-preview {
+        margin-top: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 14px;
+        border-top: 1px solid #e7ecf2;
+    }
+
+    .team-link {
+        color: #174ea6;
+        font-size: 0.88rem;
+        font-weight: 700;
+    }
+
+    .team-arrow {
+        color: #174ea6;
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+
+    @media (max-width: 640px) {
+        .teams-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .team-card { padding: 18px; }
+
+        .team-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+</style>
 {% endblock %}

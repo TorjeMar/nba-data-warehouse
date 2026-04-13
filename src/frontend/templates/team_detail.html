@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}{{ db | upper }} - {{ team.full_name }}{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="/">Home</a>
+    <span>/</span>
+    <a href="/{{ db }}">{{ db | upper }}</a>
+    <span>/</span>
+    <a href="/{{ db }}/team">Team</a>
+    <span>/</span>
+    {{ team.tricode }}
+</div>
+
+<section class="team-hero">
+    <p class="hero-kicker">{{ team.tricode }}</p>
+    <h1>{{ team.full_name }}</h1>
+    <p class="hero-subtitle">
+        Warehouse summary for one franchise across the records currently loaded into {{ db | upper }}.
+    </p>
+</section>
+
+<section class="stat-grid stat-grid-3">
+    {% set summary_items = [
+        ("Games", team.games_count),
+        ("Players", team.players_count),
+        ("Total Points", team.total_points)
+    ] %}
+    {% for label, value in summary_items %}
+    <article class="stat-card">
+        <span class="stat-label">{{ label }}</span>
+        <strong class="stat-value stat-value-lg">{{ value }}</strong>
+    </article>
+    {% endfor %}
+</section>
+
+<section class="stat-grid stat-grid-2">
+    {% set detail_items = [
+        ("Top Scorer", team.top_scorer),
+        ("Top Assists", team.top_assist)
+    ] %}
+    {% for label, value in detail_items %}
+    <article class="stat-card">
+        <span class="stat-label">{{ label }}</span>
+        <strong class="stat-value">{{ value }}</strong>
+    </article>
+    {% endfor %}
+</section>
+
+<section class="stat-card stat-card-wide">
+    <span class="stat-label">Years Covered</span>
+    {% if team.years %}
+    <ul class="year-chips">
+        {% for year in team.years %}
+        <li>{{ year }}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty-text">No year breakdown available.</p>
+    {% endif %}
+</section>
+
+<style>
+    .team-hero {
+        margin-bottom: 1.8rem;
+        padding: 2rem;
+        border-radius: 22px;
+        background:
+            radial-gradient(circle at top right, rgba(23, 78, 166, 0.10), transparent 34%),
+            linear-gradient(180deg, #ffffff 0%, #f5f8fc 100%);
+        border: 1px solid #dbe1ea;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
+    }
+
+    .hero-kicker {
+        margin: 0 0 0.6rem;
+        color: #174ea6;
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .hero-subtitle {
+        max-width: 560px;
+        margin: 0.6rem 0 0;
+        color: #5f6773;
+        font-size: 0.98rem;
+        line-height: 1.5;
+    }
+
+    .stat-grid {
+        display: grid;
+        gap: 16px;
+        margin-bottom: 1.2rem;
+    }
+
+    .stat-grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .stat-grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+    .stat-card {
+        padding: 1.3rem 1.4rem;
+        border-radius: 18px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid #d8dce3;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+    }
+
+    .stat-card-wide {
+        margin-bottom: 1.2rem;
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    }
+
+    .stat-label {
+        display: block;
+        margin-bottom: 0.6rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #5f6773;
+    }
+
+    .stat-value {
+        display: block;
+        margin: 0;
+        color: #152033;
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1.4;
+    }
+
+    .stat-value-lg {
+        font-size: 1.6rem;
+        font-weight: 800;
+    }
+
+    .year-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .year-chips li {
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: #ffffff;
+        border: 1px solid #d8dce3;
+        color: #314054;
+        font-size: 0.84rem;
+        font-weight: 600;
+    }
+
+    .empty-text {
+        color: #8a8f98;
+        font-size: 0.94rem;
+        margin: 0;
+    }
+
+    @media (max-width: 720px) {
+        .stat-grid-3,
+        .stat-grid-2 {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
