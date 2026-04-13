@@ -7,18 +7,74 @@
     <a href="/">Home</a><span>/</span>{{ db | upper }}
 </div>
 
-<h1>{{ db | upper }}</h1>
-<h2>Choose a query category</h2>
+<div class="db-hero">
+    <p class="db-kicker">{{ db | upper }} Backend</p>
+    <h1>{{ db | upper }}</h1>
+    <p class="db-subtitle">Choose a query category to explore the warehouse.</p>
+</div>
 
 <div class="cards">
     <a class="card" href="/{{ db }}/team">
+        <p class="card-kicker">Franchise View</p>
         <h3>By Team</h3>
-        <p>View team statistics and performance data</p>
+        <p>View team statistics, rosters, and performance data</p>
+        <span class="card-arrow">Browse teams &rarr;</span>
     </a>
 
     <a class="card" href="/{{ db }}/year">
+        <p class="card-kicker">Season View</p>
         <h3>By Year</h3>
-        <p>View season-level statistics and trends</p>
+        <p>View season-level statistics, standings, and leaders</p>
+        <span class="card-arrow">Browse seasons &rarr;</span>
     </a>
 </div>
+
+<style>
+    .db-hero {
+        margin-bottom: 1.8rem;
+        padding: 1.8rem;
+        border-radius: 22px;
+        background:
+            radial-gradient(circle at top right, rgba(23, 78, 166, 0.10), transparent 34%),
+            linear-gradient(180deg, #ffffff 0%, #f5f8fc 100%);
+        border: 1px solid #dbe1ea;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
+    }
+
+    .db-kicker {
+        margin: 0 0 0.6rem;
+        color: #174ea6;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .db-subtitle {
+        max-width: 480px;
+        margin: 0.6rem 0 0;
+        color: #5f6773;
+        font-size: 0.98rem;
+        line-height: 1.5;
+    }
+
+    .card-kicker {
+        margin: 0 0 0.6rem;
+        color: #174ea6;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .card-arrow {
+        display: block;
+        margin-top: 1.2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e7ecf2;
+        color: #174ea6;
+        font-size: 0.88rem;
+        font-weight: 700;
+    }
+</style>
 {% endblock %}

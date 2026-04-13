@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+
+{% block title %}{{ db | upper }} - {{ season.season_label }}{% endblock %}
+
+{% block content %}
+{% set team_colors = {
+    "ATL": "#e03a3e", "BKN": "#111111", "BOS": "#007a33", "CHA": "#1d1160",
+    "CHI": "#ce1141", "CLE": "#860038", "DAL": "#00538c", "DEN": "#0e2240",
+    "DET": "#c8102e", "GSW": "#1d428a", "HOU": "#ce1141", "IND": "#002d62",
+    "LAC": "#c8102e", "LAL": "#552583", "MEM": "#5d76a9", "MIA": "#98002e",
+    "MIL": "#00471b", "MIN": "#0c2340", "NOP": "#0c2340", "NYK": "#f58426",
+    "OKC": "#007ac1", "ORL": "#0077c0", "PHI": "#006bb6", "PHX": "#1d1160",
+    "POR": "#e03a3e", "SAC": "#5a2d81", "SAS": "#6f7d84", "TOR": "#ce1141",
+    "UTA": "#002b5c", "WAS": "#002b5c"
+} %}
+
+{% macro render_matchup(series, extra_class="") %}
+{% set c1 = team_colors.get(series.team_one.tricode, "#888") %}
+{% set c2 = team_colors.get(series.team_two.tricode, "#888") %}
+<article class="matchup {{ extra_class }}" style="--team1: {{ c1 }}; --team2: {{ c2 }};">
+    <div class="matchup-team {% if series.team_one.wins > series.team_two.wins %}matchup-winner{% endif %}" style="--team-color: {{ c1 }};">
+        <div>
+            <strong>{{ series.team_one.name }}</strong>
+            <span>{{ series.team_one.tricode }}</span>
+        </div>
+        <em>{{ series.team_one.wins }}</em>
+    </div>
+    <div class="matchup-divider"></div>
+    <div class="matchup-team {% if series.team_two.wins > series.team_one.wins %}matchup-winner{% endif %}" style="--team-color: {{ c2 }};">
+        <div>
+            <strong>{{ series.team_two.name }}</strong>
+            <span>{{ series.team_two.tricode }}</span>
+        </div>
+        <em>{{ series.team_two.wins }}</em>
+    </div>
+</article>
+{% endmacro %}
+<div class="breadcrumb">
+    <a href="/">Home</a><span>/</span><a href="/{{ db }}">{{ db | upper }}</a><span>/</span><a href="/{{ db }}/year">Year</a><span>/</span>{{ season.season_label }}
+</div>
+
+<div class="season-hero">
+    <p class="hero-kicker">{{ db | upper }} &middot; Season</p>
+    <h1>{{ season.season_label }}</h1>
+</div>
+
+<div class="kpi-row">
+    <div class="kpi"><span>{{ season.games }}</span><small>Games</small></div>
+    <div class="kpi"><span>{{ season.teams }}</span><small>Teams</small></div>
+    <div class="kpi"><span>{{ season.total_points }}</span><small>Total Points</small></div>
+    <div class="kpi"><span>{{ season.avg_team_points }}</span><small>Avg Team Pts</small></div>
+</div>
+
+{% set playoff_tricodes = [] %}
+{% for series in season.playoff_series %}
+    {% if playoff_tricodes.append(series.team_one.tricode) %}{% endif %}
+    {% if playoff_tricodes.append(series.team_two.tricode) %}{% endif %}
+{% endfor %}
+
+<section class="section">
+    <div class="standings-split">
+        {% for conf_name in ["West", "East"] %}
+        <div class="standings-panel">
+            <h2>{{ conf_name }}ern Conference</h2>
+            <div class="table-wrap">
+                <table class="standings-table">
+                    <thead>
+                        <tr>
+                            <th class="col-rank">#</th>
+                            <th class="col-team">Team</th>
+                            <th>Record</th>
+                            <th>W</th>
+                            <th>L</th>
+                            <th>PF</th>
+                            <th>PA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set ns = namespace(rank=0) %}
+                        {% for team in season.team_records %}
+                        {% if conferences.get(team.tricode) == conf_name %}
+                        {% set ns.rank = ns.rank + 1 %}
+                        {% set in_playoffs = team.tricode in playoff_tricodes %}
+                        <tr class="{% if in_playoffs %}row-playoff{% endif %}">
+                            <td class="col-rank">{{ ns.rank }}</td>
+                            <td class="col-team">
+                                <strong>{{ team.name }}</strong>
+                                <span class="tricode">{{ team.tricode }}</span>
+                                {% if in_playoffs %}<span class="playoff-tag">P</span>{% endif %}
+                            </td>
+                            <td class="col-record"><strong>{{ team.record }}</strong></td>
+                            <td>{{ team.wins }}</td>
+                            <td>{{ team.losses }}</td>
+                            <td>{{ team.points_for }}</td>
+                            <td>{{ team.points_against }}</td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+{% if season.playoff_bracket %}
+<section class="section">
+    <h2>Playoff Bracket</h2>
+    <div class="bracket-scroll">
+        <div class="bracket-desktop">
+            <div class="bracket-grid">
+                <div class="conf-label conf-left">{{ season.playoff_bracket.left_label }}</div>
+                <div class="conf-label conf-right">{{ season.playoff_bracket.right_label }}</div>
+
+                {% for column in season.playoff_bracket.left_columns %}
+                <section class="bracket-col">
+                    <h3>{{ column.title }}</h3>
+                    {% for series in column.series %}
+                    {{ render_matchup(series) }}
+                    {% endfor %}
+                </section>
+                {% endfor %}
+
+                <section class="bracket-col bracket-col-finals">
+                    <h3>NBA Finals</h3>
+                    {% if season.playoff_bracket.finals %}
+                    {{ render_matchup(season.playoff_bracket.finals, "matchup-finals") }}
+                    {% endif %}
+                </section>
+
+                {% for column in season.playoff_bracket.right_columns %}
+                <section class="bracket-col">
+                    <h3>{{ column.title }}</h3>
+                    {% for series in column.series %}
+                    {{ render_matchup(series) }}
+                    {% endfor %}
+                </section>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bracket-mobile">
+            <div class="mobile-group">
+                <p class="mobile-conf">{{ season.playoff_bracket.left_label }}</p>
+                {% for column in season.playoff_bracket.left_columns %}
+                {% if column.series %}
+                <h3>{{ column.title }}</h3>
+                {% for series in column.series %}
+                {{ render_matchup(series) }}
+                {% endfor %}
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            {% if season.playoff_bracket.finals %}
+            <div class="mobile-group">
+                <p class="mobile-conf">NBA Finals</p>
+                {{ render_matchup(season.playoff_bracket.finals, "matchup-finals") }}
+            </div>
+            {% endif %}
+
+            <div class="mobile-group">
+                <p class="mobile-conf">{{ season.playoff_bracket.right_label }}</p>
+                {% for column in season.playoff_bracket.right_columns %}
+                {% if column.series %}
+                <h3>{{ column.title }}</h3>
+                {% for series in column.series %}
+                {{ render_matchup(series) }}
+                {% endfor %}
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<section class="section">
+    <h2>Leaders</h2>
+    <div class="leaders-row">
+        {% for title, list in [("Scoring", season.top_scorers), ("Assists", season.top_assists), ("Rebounds", season.top_rebounds)] %}
+        <div class="leader-panel">
+            <h3>{{ title }}</h3>
+            <ol class="leader-list">
+                {% for p in list %}
+                <li>
+                    <div>
+                        <strong>{{ p.player_name }}</strong>
+                        <span class="tricode">{{ p.team_tricode }}</span>
+                    </div>
+                    <div class="leader-stats">
+                        <strong>{{ p.total }}</strong>
+                        <span>{{ p.per_game }}/g</span>
+                    </div>
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<style>
+    .container { max-width: 1400px; }
+
+    /* Hero */
+    .season-hero {
+        margin-bottom: 1.4rem;
+        padding: 1.6rem 1.8rem;
+        border-radius: 16px;
+        background:
+            radial-gradient(circle at top right, rgba(245, 158, 11, 0.08), transparent 40%),
+            linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid #d8dce3;
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+    }
+    .hero-kicker {
+        margin: 0 0 0.4rem;
+        color: #9a6700;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+    .season-hero h1 { margin-bottom: 0; }
+
+    /* KPI row */
+    .kpi-row {
+        display: flex;
+        gap: 1px;
+        background: #d8dce3;
+        border: 1px solid #d8dce3;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+    .kpi {
+        flex: 1;
+        background: #fff;
+        padding: 1rem 1.2rem;
+        text-align: center;
+    }
+    .kpi span {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #152033;
+    }
+    .kpi small {
+        color: #697385;
+        font-size: 0.76rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    /* Sections */
+    .section { margin-bottom: 2.5rem; }
+    .section > h2 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        color: #152033;
+    }
+
+    /* Conference standings */
+    .standings-split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    .standings-panel > h2 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 0.6rem;
+        color: #152033;
+    }
+    .table-wrap {
+        border: 1px solid #d8dce3;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #fff;
+    }
+    .standings-table { border: none; box-shadow: none; border-radius: 0; }
+    .standings-table th { font-size: 0.72rem; padding: 0.5rem 0.6rem; }
+    .standings-table td { padding: 0.5rem 0.6rem; font-size: 0.85rem; }
+    .col-rank { width: 32px; text-align: center; color: #8a8f98; font-weight: 700; }
+    .col-team { min-width: 140px; }
+    .col-team strong { color: #152033; font-weight: 600; font-size: 0.88rem; }
+    .col-record strong { font-weight: 700; }
+    .tricode { color: #8a8f98; font-size: 0.72rem; font-weight: 600; margin-left: 4px; letter-spacing: 0.04em; }
+
+    .row-playoff { background: #f7faff; }
+    .playoff-tag {
+        display: inline-block;
+        margin-left: 5px;
+        width: 18px;
+        height: 18px;
+        line-height: 18px;
+        text-align: center;
+        border-radius: 5px;
+        background: #174ea6;
+        color: #fff;
+        font-size: 0.58rem;
+        font-weight: 800;
+        vertical-align: middle;
+    }
+
+    /* Bracket */
+    .bracket-scroll { overflow: visible; }
+    .bracket-desktop { display: block; }
+    .bracket-mobile { display: none; }
+
+    .bracket-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        column-gap: 10px;
+        row-gap: 14px;
+        align-items: start;
+    }
+    .conf-label {
+        font-size: 1.15rem;
+        font-weight: 800;
+        text-align: center;
+        color: #152033;
+        padding-bottom: 4px;
+    }
+    .conf-left { grid-column: 1 / span 3; }
+    .conf-right { grid-column: 5 / span 3; }
+
+    .bracket-col { display: grid; align-content: start; gap: 12px; }
+    .bracket-col h3 {
+        margin: 0;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #8a8f98;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    .bracket-col-finals { padding-top: 260px; }
+
+    .matchup {
+        border: 1px solid #d8dce3;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+    }
+    .matchup-finals {
+        border-color: #bfa94e;
+        box-shadow: 0 6px 18px rgba(191, 169, 78, 0.12);
+    }
+
+    .matchup-team {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        border-left: 5px solid var(--team-color, #888);
+    }
+    .matchup-divider {
+        height: 1px;
+        background: #e7ecf2;
+    }
+    .matchup-team div {
+        min-width: 0;
+    }
+    .matchup-team div strong {
+        display: block;
+        color: #152033;
+        font-size: 0.82rem;
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .matchup-team div span {
+        color: #697385;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+    .matchup-team em {
+        font-style: normal;
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #152033;
+        flex-shrink: 0;
+        min-width: 18px;
+        text-align: right;
+    }
+    .matchup-winner {
+        background: #e6f4e0;
+    }
+    .matchup-winner em {
+        color: #2e7d32;
+    }
+
+    /* Mobile bracket */
+    .mobile-group { margin-bottom: 1.5rem; }
+    .mobile-group h3 {
+        margin: 0.8rem 0 0.5rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #8a8f98;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    .mobile-conf {
+        margin: 0 0 0.6rem;
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: #152033;
+    }
+    .mobile-group .matchup { margin-bottom: 10px; }
+
+    /* Leaders */
+    .leaders-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+    }
+    .leader-panel {
+        border: 1px solid #d8dce3;
+        border-radius: 14px;
+        overflow: hidden;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+    }
+    .leader-panel h3 {
+        margin: 0;
+        padding: 0.75rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #152033;
+        border-bottom: 1px solid #e7ecf2;
+    }
+    .leader-list {
+        margin: 0;
+        padding: 0.4rem 0.4rem 0.4rem 2rem;
+        list-style-position: outside;
+    }
+    .leader-list li {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 0.55rem 0.6rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .leader-list li:last-child { border-bottom: 0; }
+    .leader-list li div strong { color: #152033; font-size: 0.88rem; }
+    .leader-stats { text-align: right; flex-shrink: 0; }
+    .leader-stats strong { display: block; color: #152033; font-size: 0.88rem; }
+    .leader-stats span { color: #697385; font-size: 0.78rem; }
+
+    @media (max-width: 1320px) {
+        .bracket-desktop { display: none; }
+        .bracket-mobile { display: block; }
+    }
+
+    @media (max-width: 900px) {
+        .standings-split { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+        .container { padding-left: 16px; padding-right: 16px; }
+        .kpi-row { flex-wrap: wrap; }
+        .kpi { min-width: 45%; }
+        .leaders-row { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
