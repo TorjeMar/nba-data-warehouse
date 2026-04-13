@@ -1,5 +1,8 @@
+"""Download NBA season metadata (game listings per season slice)."""
+
 from __future__ import annotations
 
+import argparse
 import json
 import random
 import time
@@ -16,13 +19,13 @@ DEFAULT_SEASON_TYPES = ("Regular Season", "Playoffs", "Pre Season", "All Star", 
 
 @dataclass(frozen=True, slots=True)
 class SeasonSlice:
-        season_label: str
-        season_type: str
+    season_label: str
+    season_type: str
 
 
 def season_label_from_start_year(start_year: int) -> str:
-        end_year_two_digits = (start_year + 1) % 100
-        return f"{start_year}-{end_year_two_digits:02d}"
+    end_year_two_digits = (start_year + 1) % 100
+    return f"{start_year}-{end_year_two_digits:02d}"
 
 
 def season_slices(
@@ -37,83 +40,70 @@ def season_slices(
 
 
 def fetch_games(
-        season_label: str,
-        season_type: str,
-        *,
-        timeout_seconds: int = 90,
-        max_retries: int = 6,
-        backoff_seconds: float = 2.0,
+    season_label: str,
+    season_type: str,
+    *,
+    timeout_seconds: int = 90,
+    max_retries: int = 6,
+    backoff_seconds: float = 2.0,
 ) -> Any | None:
-        for attempt in range(1, max_retries + 1):
-                try:
-                        effective_timeout = timeout_seconds + (attempt - 1) * 15
-                        finder = leaguegamefinder.LeagueGameFinder(
-                                season_nullable=season_label,
-                                season_type_nullable=season_type,
-                                timeout=effective_timeout,
-                        )
-                        return finder.get_data_frames()[0]
-                except RequestException as exc:
-                        if attempt == max_retries:
-                                print(
-                                        f"  Failed after {max_retries} attempts for "
-                                        f"{season_label} | {season_type}: {exc}"
-                                )
-                                return None
+    for attempt in range(1, max_retries + 1):
+        try:
+            effective_timeout = timeout_seconds + (attempt - 1) * 15
+            finder = leaguegamefinder.LeagueGameFinder(
+                season_nullable=season_label,
+                season_type_nullable=season_type,
+                timeout=effective_timeout,
+            )
+            return finder.get_data_frames()[0]
+        except RequestException as exc:
+            if attempt == max_retries:
+                print(
+                    f"  Failed after {max_retries} attempts for "
+                    f"{season_label} | {season_type}: {exc}"
+                )
+                return None
 
-                        wait = backoff_seconds * (2 ** (attempt - 1)) + random.uniform(0.2, 1.0)
-                        print(
-                                f"  Request failed (attempt {attempt}/{max_retries}) for "
-                                f"{season_label} | {season_type}: {exc}"
-                        )
-                        print(f"  Retrying in {wait:.1f}s...")
-                        time.sleep(wait)
+            wait = backoff_seconds * (2 ** (attempt - 1)) + random.uniform(0.2, 1.0)
+            print(
+                f"  Request failed (attempt {attempt}/{max_retries}) for "
+                f"{season_label} | {season_type}: {exc}"
+            )
+            print(f"  Retrying in {wait:.1f}s...")
+            time.sleep(wait)
 
-        return None
+    return None
 
 
 def _output_path(output_dir: Path, season_label: str, season_type: str) -> Path:
-        suffix = season_type.replace(" ", "_")
-        return output_dir / f"games_{season_label}_{suffix}.json"
-
-
-def _pending_slices(
-    slices: list[SeasonSlice],
-    output_dir: Path,
-    skip_existing: bool,
-) -> list[SeasonSlice]:
-    if not skip_existing:
-        return slices
-    return [
-        slice_
-        for slice_ in slices
-        if not _output_path(output_dir, slice_.season_label, slice_.season_type).exists()
-    ]
+    suffix = season_type.replace(" ", "_")
+    return output_dir / f"games_{season_label}_{suffix}.json"
 
 
 def show_games(
     start_year: int = 2000,
     end_year: int = 2024,
-    preview_rows: int = 5,
     output_dir: str = "data/season",
     season_types: Iterable[str] = DEFAULT_SEASON_TYPES,
     skip_existing: bool = True,
     pause_between_calls_seconds: float = 1.5,
 ) -> None:
-    """Fetch and persist season game rows as JSON files."""
-    _ = preview_rows  # Kept for backward compatibility with existing callers.
-
+    """Fetch and persist season game listing files."""
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     all_slices = list(season_slices(start_year, end_year, season_types=season_types))
-    slices_to_process = _pending_slices(all_slices, out_dir, skip_existing)
+    if skip_existing:
+        all_slices = [
+            s for s in all_slices
+            if not _output_path(out_dir, s.season_label, s.season_type).exists()
+        ]
 
-    if not slices_to_process:
+    if not all_slices:
         print(f"All requested season files already exist in {out_dir}.")
         return
 
-    for slice_ in slices_to_process:
+    for slice_ in all_slices:
         print(f"Processing {slice_.season_label} | {slice_.season_type}...")
         target_file = _output_path(out_dir, slice_.season_label, slice_.season_type)
 
@@ -127,20 +117,17 @@ def show_games(
 
         if games.empty:
             print("  No games returned.")
-            # Persist an explicit empty payload so downstream loaders treat this
-            # season slice as valid-but-empty instead of missing.
             with target_file.open("w", encoding="utf-8") as f:
                 json.dump([], f, indent=2)
             print(f"  Saved empty file: {target_file}")
             time.sleep(pause_between_calls_seconds)
             continue
 
-        # LeagueGameFinder returns one row per team per game, not one row per game.
         unique_game_count = games["GAME_ID"].nunique()
         print(f"  Rows: {len(games)} | Unique games: {unique_game_count}")
 
         columns_to_show = ["GAME_ID", "GAME_DATE", "TEAM_ID", "TEAM_ABBREVIATION", "MATCHUP"]
-        available_columns = [column for column in columns_to_show if column in games.columns]
+        available_columns = [c for c in columns_to_show if c in games.columns]
 
         with target_file.open("w", encoding="utf-8") as f:
             json.dump(games[available_columns].to_dict(orient="records"), f, indent=2)
@@ -148,6 +135,7 @@ def show_games(
         print(f"  Saved: {target_file}")
         time.sleep(pause_between_calls_seconds)
         print()
+
 
 def download_season(
     season_label: str,
@@ -162,3 +150,38 @@ def download_season(
         season_types=season_types,
         skip_existing=skip_existing,
     )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Download NBA season game listings.")
+    parser.add_argument("--start-year", type=int, default=2000)
+    parser.add_argument("--end-year", type=int, default=2025)
+    parser.add_argument("--season-label", type=str, default=None, help="Single season label like 2023-24.")
+    parser.add_argument("--output-dir", type=str, default="data/season")
+    parser.add_argument("--season-types", nargs="*", default=list(DEFAULT_SEASON_TYPES))
+    parser.add_argument("--skip-existing", action="store_true")
+    parser.add_argument("--pause-between-calls-seconds", type=float, default=1.5)
+
+    args = parser.parse_args()
+
+    if args.season_label:
+        download_season(
+            season_label=args.season_label,
+            output_dir=args.output_dir,
+            season_types=args.season_types,
+            skip_existing=args.skip_existing,
+        )
+        return
+
+    show_games(
+        start_year=args.start_year,
+        end_year=args.end_year,
+        output_dir=args.output_dir,
+        season_types=args.season_types,
+        skip_existing=args.skip_existing,
+        pause_between_calls_seconds=args.pause_between_calls_seconds,
+    )
+
+
+if __name__ == "__main__":
+    main()
