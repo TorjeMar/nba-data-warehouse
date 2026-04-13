@@ -65,8 +65,10 @@ services:
     image: neo4j:5.26
     container_name: ikt453_neo4j
     restart: always
+    entrypoint: ["/init/init-neo4j.sh"]
     environment:
       NEO4J_AUTH: neo4j/${DB_PASSWORD}
+      NEO4J_PASSWORD: ${DB_PASSWORD}
     ports:
       - "7474:7474"
       - "7687:7687"
@@ -75,6 +77,8 @@ services:
       - ikt453_neo4j_logs:/logs
       - ikt453_neo4j_config:/config
       - ikt453_neo4j_plugins:/plugins
+      - ./sql/neo4j/init-neo4j.sh:/init/init-neo4j.sh:ro
+      - ./sql/neo4j/001_constraints.cypher:/docker-entrypoint-initdb.d/001_constraints.cypher:ro
 
   zookeeper:
     image: confluentinc/cp-zookeeper:6.0.1
