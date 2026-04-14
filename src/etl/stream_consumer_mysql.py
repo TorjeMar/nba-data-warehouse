@@ -109,7 +109,7 @@ def run_consumer(
                         stats["invalid"] += 1
 
                     progress.set_postfix_str(
-                        f"ld={stats['loaded']} b={len(batch)} fl={stats['flushes']} inv={stats['invalid']}",
+                        f"loaded={stats['loaded']} batch={len(batch)} flushes={stats['flushes']} invalid={stats['invalid']}",
                         refresh=False,
                     )
 
@@ -126,8 +126,8 @@ def run_consumer(
                     last_flush = now
 
                     progress.set_postfix_str(
-                        f"ld={stats['loaded']} b={len(batch)} fl={stats['flushes']} inv={stats['invalid']}",
-                        refresh=True,
+                        f"loaded={stats['loaded']} batch={len(batch)} flushes={stats['flushes']} invalid={stats['invalid']}",
+                        refresh=False,
                     )
                 except Exception:
                     connection.rollback()
@@ -143,8 +143,8 @@ def run_consumer(
                 last_flush = now
 
                 progress.set_postfix_str(
-                    f"ld={stats['loaded']} b={len(batch)} fl={stats['flushes']} inv={stats['invalid']}",
-                    refresh=True,
+                    f"loaded={stats['loaded']} batch={len(batch)} flushes={stats['flushes']} invalid={stats['invalid']}",
+                    refresh=False,
                 )
 
         if batch:
@@ -155,8 +155,8 @@ def run_consumer(
             batch.clear()
 
             progress.set_postfix_str(
-                f"ld={stats['loaded']} b={len(batch)} fl={stats['flushes']} inv={stats['invalid']}",
-                refresh=True,
+                f"loaded={stats['loaded']} batch={len(batch)} flushes={stats['flushes']} invalid={stats['invalid']}",
+                refresh=False,
             )
 
     finally:
