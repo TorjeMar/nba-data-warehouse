@@ -920,15 +920,130 @@ def mongodb_team_query():
 
     db = connect_mongodb()
 
-    # TODO: write your MongoDB team aggregation pipeline here
-    # Example:
-    # pipeline = [ {"$group": {...}}, {"$sort": {...}} ]
-    # results = list(db.player_game_stats.aggregate(pipeline))
-    # columns = [...]
-    # rows = [[doc[c] for c in columns] for doc in results]
+    # Base team list for NBA regular-season teams
+    team_pipeline = [
+        {
+            "$match": {
+                "sourceGameId": {"$regex": "^002"},
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "id": "$team.sourceTeamId",
+                    "tricode": "$team.teamTricode",
+                    "city": "$team.teamCity",
+                    "name": "$team.teamName",
+                },
+                "years": {"$addToSet": {"$year": "$gameDate"}},
+            }
+        },
+        {
+            "$project": {
+                "_id": 0,
+                "id": "$_id.id",
+                "tricode": "$_id.tricode",
+                "city": "$_id.city",
+                "name_raw": "$_id.name",
+                "years": "$years",
+            }
+        },
+        {"$sort": {"name_raw": 1}},
+    ]
 
-    columns, rows = [], []
+    # Top scorer per team
+    top_scorer_pipeline = [
+        {
+            "$match": {
+                "sourceGameId": {"$regex": "^002"},
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "teamId": "$team.sourceTeamId",
+                    "playerId": "$player.sourcePersonId",
+                    "playerName": "$player.displayName",
+                },
+                "total_points": {"$sum": "$stats.points"},
+            }
+        },
+        {
+            "$sort": {
+                "_id.teamId": 1,
+                "total_points": -1,
+                "_id.playerName": 1,
+            }
+        },
+        {
+            "$group": {
+                "_id": "$_id.teamId",
+                "top_scorer": {"$first": "$_id.playerName"},
+            }
+        },
+    ]
 
+    # Top assister per team
+    top_assist_pipeline = [
+        {
+            "$match": {
+                "sourceGameId": {"$regex": "^002"},
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "teamId": "$team.sourceTeamId",
+                    "playerId": "$player.sourcePersonId",
+                    "playerName": "$player.displayName",
+                },
+                "total_assists": {"$sum": "$stats.assists"},
+            }
+        },
+        {
+            "$sort": {
+                "_id.teamId": 1,
+                "total_assists": -1,
+                "_id.playerName": 1,
+            }
+        },
+        {
+            "$group": {
+                "_id": "$_id.teamId",
+                "top_assist": {"$first": "$_id.playerName"},
+            }
+        },
+    ]
+
+    team_docs = list(db.player_game_stats.aggregate(team_pipeline))
+    scorer_docs = list(db.player_game_stats.aggregate(top_scorer_pipeline))
+    assist_docs = list(db.player_game_stats.aggregate(top_assist_pipeline))
+
+    scorer_map = {int(doc["_id"]): doc["top_scorer"] for doc in scorer_docs}
+    assist_map = {int(doc["_id"]): doc["top_assist"] for doc in assist_docs}
+
+    rows = []
+    for doc in team_docs:
+        team_id = int(doc["id"])
+        city = doc.get("city")
+        name_raw = doc.get("name_raw")
+        years = sorted(
+            [int(year) for year in doc.get("years", []) if year is not None]
+        )
+
+        rows.append(
+            {
+                "id": team_id,
+                "tricode": doc.get("tricode", ""),
+                "name": format_team_display_name(city, name_raw),
+                "years": years,
+                "top_scorer": scorer_map.get(team_id, "No data"),
+                "top_assist": assist_map.get(team_id, "No data"),
+            }
+        )
+
+    rows.sort(key=lambda row: row["name"])
+    columns = ["id", "tricode", "name", "years", "top_scorer", "top_assist"]
     return columns, rows
 
 
