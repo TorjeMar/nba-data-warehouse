@@ -81,8 +81,13 @@ def run_producer(
 
     progress = tqdm(
         total=limit,
-        desc="Producing Kafka events",
-        unit="events",
+        desc="Producer",
+        unit="ev",
+        dynamic_ncols=False,
+        ncols=80,
+        mininterval=0.2,
+        maxinterval=0.5,
+        bar_format="{desc}: {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
     )
 
     try:
@@ -100,13 +105,7 @@ def run_producer(
             producer.send(topic, key=event["partition_key"], value=event).get(timeout=30)
             sent += 1
             last_event_number = absolute_event_number
-
             progress.update(1)
-            progress.set_postfix(
-                current_event=absolute_event_number,
-                game=record.source_game_id,
-                player=record.source_person_id,
-            )
     finally:
         producer.flush()
         producer.close()
