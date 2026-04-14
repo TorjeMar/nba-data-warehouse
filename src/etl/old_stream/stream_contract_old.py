@@ -1,4 +1,4 @@
-"""Kafka event contract helpers for player-game warehouse records."""
+"""Minimal streaming contract for player-game warehouse records."""
 
 from __future__ import annotations
 
@@ -14,11 +14,11 @@ EVENT_TYPE = "player_game_record"
 SCHEMA_VERSION = "1.0.0"
 
 
-def utc_now_iso() -> str:
+def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def to_iso_utc(value: datetime | None) -> str | None:
+def _to_iso_utc(value: datetime | None) -> str | None:
     if value is None:
         return None
     if value.tzinfo is None:
@@ -26,7 +26,7 @@ def to_iso_utc(value: datetime | None) -> str | None:
     return value.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
-def parse_iso_datetime(value: str | None) -> datetime | None:
+def _parse_iso_datetime(value: str | None) -> datetime | None:
     if value is None:
         return None
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -41,13 +41,13 @@ def build_player_game_event(
     producer_run_id: str,
 ) -> dict[str, Any]:
     payload = asdict(record)
-    payload["game_date"] = to_iso_utc(record.game_date)
+    payload["game_date"] = _to_iso_utc(record.game_date)
     return {
         "event_id": str(uuid4()),
         "event_type": EVENT_TYPE,
         "schema_version": SCHEMA_VERSION,
         "partition_key": f"{record.source_game_id}:{record.source_team_id}",
-        "ingested_at_utc": utc_now_iso(),
+        "ingested_at_utc": _utc_now_iso(),
         "trace": {
             "producer_name": producer_name,
             "producer_run_id": producer_run_id,
@@ -70,5 +70,5 @@ def assert_valid_player_game_event(event: dict[str, Any]) -> None:
 def event_to_warehouse_record(event: dict[str, Any]) -> WarehouseRecord:
     assert_valid_player_game_event(event)
     payload = dict(event["payload"])
-    payload["game_date"] = parse_iso_datetime(payload.get("game_date"))
+    payload["game_date"] = _parse_iso_datetime(payload.get("game_date"))
     return WarehouseRecord(**payload)
