@@ -34,6 +34,18 @@ def parse_args() -> argparse.Namespace:
         help="Warehouse backend to load into.",
     )
     parser.add_argument("--limit", type=int, default=None, help="Optional maximum number of messages to process.")
+    parser.add_argument(
+        "--poll-timeout-ms",
+        type=int,
+        default=1000,
+        help="Kafka poll timeout in milliseconds.",
+    )
+    parser.add_argument(
+        "--idle-polls-before-exit",
+        type=int,
+        default=None,
+        help="Exit after this many consecutive empty polls. Useful for scheduled one-shot runs.",
+    )
     return parser.parse_args()
 
 
@@ -66,16 +78,26 @@ def run_consumer(
     group_id: str,
     backend: str,
     limit: int | None = None,
+    poll_timeout_ms: int = 1000,
+    idle_polls_before_exit: int | None = None,
 ) -> dict[str, int]:
     consumer = build_consumer(topic, broker, group_id)
     resource, loader, close_resource = build_backend(backend)
     stats = {"consumed": 0, "loaded": 0, "invalid": 0, "failed": 0}
+    consecutive_idle_polls = 0
 
     try:
         while limit is None or stats["consumed"] < limit:
-            records = consumer.poll(timeout_ms=1000, max_records=1)
+            records = consumer.poll(timeout_ms=poll_timeout_ms, max_records=1)
             if not records:
+                consecutive_idle_polls += 1
+                if (
+                    idle_polls_before_exit is not None
+                    and consecutive_idle_polls >= idle_polls_before_exit
+                ):
+                    break
                 continue
+            consecutive_idle_polls = 0
 
             for _, messages in records.items():
                 for message in messages:
@@ -114,6 +136,8 @@ def main() -> None:
         group_id=args.group_id,
         backend=args.backend,
         limit=args.limit,
+        poll_timeout_ms=args.poll_timeout_ms,
+        idle_polls_before_exit=args.idle_polls_before_exit,
     )
     print(json.dumps(stats, indent=2, sort_keys=True))
 

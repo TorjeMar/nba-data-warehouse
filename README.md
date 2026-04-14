@@ -149,6 +149,35 @@ Important assumptions:
 - Neo4j loading assumes constraints and base model scripts have already been applied
 - MongoDB loading assumes the target database exists and the validator/index scripts are applied or will be applied separately
 
+## Streaming Architecture
+Containerized streaming components:
+- RDBMS: MySQL
+- NoSQL: MongoDB and Neo4j
+- Stream infrastructure: Kafka broker and ZooKeeper
+
+Start only the required services:
+
+```bash
+docker compose up -d zookeeper broker mysql mongodb neo4j
+```
+
+Project-native fanout stream demo:
+
+```bash
+scripts/run_streaming.sh fanout --limit 100 --input data/box_scores.jsonl
+```
+
+This starts one producer and three consumer groups (MySQL, MongoDB, Neo4j), so all warehouse backends consume the same Kafka stream independently.
+
+You can also run each part separately:
+
+```bash
+scripts/run_streaming.sh consume --backend mysql --group-id mysql-cg --limit 100
+scripts/run_streaming.sh consume --backend mongodb --group-id mongodb-cg --limit 100
+scripts/run_streaming.sh consume --backend neo4j --group-id neo4j-cg --limit 100
+scripts/run_streaming.sh produce --limit 100 --input data/box_scores.jsonl
+```
+
 ## Suggested Execution Order
 
 1. Start the database containers.
