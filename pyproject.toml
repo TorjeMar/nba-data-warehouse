@@ -11,6 +11,6 @@ dependencies = [
     "nba_api>=1.7.0",
     "neo4j>=5.28.0",
     "pymongo>=4.10.0",
-    "python-dotenv>=1.2.2",
-    "tqdm>=4.67.3",
+    "python-dotenv==1.2.2",
+    "tqdm==4.67.3",
 ]

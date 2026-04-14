@@ -847,8 +847,8 @@ requires-dist = [
     { name = "nba-api", specifier = ">=1.7.0" },
     { name = "neo4j", specifier = ">=5.28.0" },
     { name = "pymongo", specifier = ">=4.10.0" },
-    { name = "python-dotenv", specifier = ">=1.2.2" },
-    { name = "tqdm", specifier = ">=4.67.3" },
+    { name = "python-dotenv", specifier = "==1.2.2" },
+    { name = "tqdm", specifier = "==4.67.3" },
 ]
 
 [[package]]
