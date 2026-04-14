@@ -5,14 +5,14 @@
 NEO4J_PID=$!
 
 echo "Waiting for Neo4j to become ready..."
-until cypher-shell -u neo4j -p "$NEO4J_PASSWORD" "RETURN 1" &>/dev/null; do
+until cypher-shell -u neo4j -p "$INIT_NEO4J_PASSWORD" "RETURN 1" &>/dev/null; do
   sleep 2
 done
 echo "Neo4j is ready."
 
 for f in /docker-entrypoint-initdb.d/*.cypher; do
   echo "Running $f ..."
-  cypher-shell -u neo4j -p "$NEO4J_PASSWORD" < "$f"
+  cypher-shell -u neo4j -p "$INIT_NEO4J_PASSWORD" < "$f"
 done
 
 wait $NEO4J_PID

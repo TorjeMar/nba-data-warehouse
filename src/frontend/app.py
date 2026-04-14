@@ -5,9 +5,13 @@ from __future__ import annotations
 import os
 import sys
 from functools import lru_cache
+import json
 
 from dotenv import load_dotenv
 from flask import Flask, render_template, abort
+
+from flask import jsonify
+from src.frontend.stream_cache import StreamStateCache
 
 # Ensure project root is on the path so we can import src.clients
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -39,6 +43,7 @@ TEAM_CONFERENCES = {
     "PHI": "East",
     "TOR": "East",
     "WAS": "East",
+
     "DAL": "West",
     "DEN": "West",
     "GSW": "West",
@@ -54,8 +59,20 @@ TEAM_CONFERENCES = {
     "SAC": "West",
     "SAS": "West",
     "UTA": "West",
+
+    # legacy / historical tricodes
+    "NJN": "East",
+    "NOH": "East",
+    "CHH": "East",
+    "BRK": "East",
+
+    "SEA": "West",
+    "VAN": "West",
+    "NOK": "West",
 }
 
+VALID_NBA_TRICODES = set(TEAM_CONFERENCES.keys())
+STREAM_CACHE = StreamStateCache()
 
 # ---------------------------------------------------------------------------
 # Query functions — fill in your own queries here
@@ -89,6 +106,14 @@ def build_team_identity(team_id: int, tricode: str, city: str | None, name: str 
         "name": format_team_display_name(city, name),
     }
 
+def get_series_conference(series: dict[str, object]) -> str | None:
+    team_one = series.get("team_one") or {}
+    team_two = series.get("team_two") or {}
+
+    tricode_one = str(team_one.get("tricode", "")).strip()
+    tricode_two = str(team_two.get("tricode", "")).strip()
+
+    return TEAM_CONFERENCES.get(tricode_one) or TEAM_CONFERENCES.get(tricode_two)
 
 def summarize_season_team_games(season_label: str, team_game_rows: list[dict[str, object]]) -> dict[str, object] | None:
     if not team_game_rows:
@@ -168,6 +193,24 @@ def build_playoff_data_from_team_games(playoff_team_game_rows: list[dict[str, ob
     if not playoff_team_game_rows:
         return [], None
 
+    def parse_playoff_source_game_id(source_game_id: str) -> tuple[str, int | None]:
+        sid = str(source_game_id or "").strip()
+        if not sid:
+            return "", None
+
+        # The last digit is the game number inside the series
+        series_key = sid[:-1]
+
+        # Most NBA playoff ids put the round digit at index 7
+        round_num = None
+        try:
+            if len(sid) > 7:
+                round_num = int(sid[7])
+        except (TypeError, ValueError):
+            round_num = None
+
+        return series_key, round_num
+
     games: dict[str, list[dict[str, object]]] = {}
     series_map: dict[str, dict[str, object]] = {}
     latest_source_game_id = max(str(row["source_game_id"]) for row in playoff_team_game_rows)
@@ -180,27 +223,32 @@ def build_playoff_data_from_team_games(playoff_team_game_rows: list[dict[str, ob
         if len(game_rows) != 2:
             continue
 
-        round_num = int(source_game_id[7])
-        series_key = source_game_id[:9]
+        series_key, round_num = parse_playoff_source_game_id(source_game_id)
+        if not series_key or round_num is None:
+            continue
+
         first, second = game_rows
+        first_team_id = int(first["team_id"])
+        second_team_id = int(second["team_id"])
+
         series = series_map.setdefault(
             series_key,
             {
                 "round_num": round_num,
                 "series_key": series_key,
                 "teams": {
-                    int(first["team_id"]): {
+                    first_team_id: {
                         **build_team_identity(
-                            int(first["team_id"]),
+                            first_team_id,
                             str(first["team_tricode"]),
                             first.get("team_city"),
                             first.get("team_name"),
                         ),
                         "wins": 0,
                     },
-                    int(second["team_id"]): {
+                    second_team_id: {
                         **build_team_identity(
-                            int(second["team_id"]),
+                            second_team_id,
                             str(second["team_tricode"]),
                             second.get("team_city"),
                             second.get("team_name"),
@@ -210,16 +258,41 @@ def build_playoff_data_from_team_games(playoff_team_game_rows: list[dict[str, ob
                 },
             },
         )
+
+        # Make sure both teams are present even if series key reused oddly
+        if first_team_id not in series["teams"]:
+            series["teams"][first_team_id] = {
+                **build_team_identity(
+                    first_team_id,
+                    str(first["team_tricode"]),
+                    first.get("team_city"),
+                    first.get("team_name"),
+                ),
+                "wins": 0,
+            }
+        if second_team_id not in series["teams"]:
+            series["teams"][second_team_id] = {
+                **build_team_identity(
+                    second_team_id,
+                    str(second["team_tricode"]),
+                    second.get("team_city"),
+                    second.get("team_name"),
+                ),
+                "wins": 0,
+            }
+
         first_points = int(first["team_points"])
         second_points = int(second["team_points"])
+
         if first_points > second_points:
-            series["teams"][int(first["team_id"])]["wins"] += 1
+            series["teams"][first_team_id]["wins"] += 1
         elif second_points > first_points:
-            series["teams"][int(second["team_id"])]["wins"] += 1
+            series["teams"][second_team_id]["wins"] += 1
 
     playoff_series_rows = []
     playoff_winner = None
     latest_rows = games.get(latest_source_game_id, [])
+
     if len(latest_rows) == 2:
         latest_winner_row = max(latest_rows, key=lambda row: int(row["team_points"]))
         playoff_winner = {
@@ -237,10 +310,11 @@ def build_playoff_data_from_team_games(playoff_team_game_rows: list[dict[str, ob
         teams = sorted(series["teams"].values(), key=lambda team: (team["id"], team["name"]))
         if len(teams) != 2:
             continue
+
         playoff_series_rows.append(
             {
                 "round_num": series["round_num"],
-                "round_name": PLAYOFF_ROUND_NAMES.get(series["round_num"], f'Round {series["round_num"]}'),
+                "round_name": PLAYOFF_ROUND_NAMES.get(series["round_num"], f"Round {series['round_num']}"),
                 "series_key": series["series_key"],
                 "team_one": teams[0],
                 "team_two": teams[1],
@@ -265,11 +339,15 @@ def build_playoff_bracket(playoff_series: list[dict[str, object]]) -> dict[str, 
 
     for series in playoff_series:
         round_num = int(series["round_num"])
+
         if round_num == 4:
             finals_series.append(series)
             continue
 
-        conference = TEAM_CONFERENCES.get(str(series["team_one"]["tricode"]))
+        if round_num not in {1, 2, 3}:
+            continue
+
+        conference = get_series_conference(series)
         if conference == "West":
             left_columns[round_num - 1]["series"].append(series)
         elif conference == "East":
@@ -346,27 +424,35 @@ def mysql_get_teams_query():
             t.team_key AS id,
             t.team_tricode AS tricode,
             t.team_city AS city,
-            t.team_name AS name
+            t.team_name AS name,
+            COALESCE(
+                GROUP_CONCAT(DISTINCT d.year_num ORDER BY d.year_num SEPARATOR ','),
+                ''
+            ) AS years_csv
         FROM dim_team AS t
-        WHERE EXISTS (
-            SELECT 1
-            FROM fact_player_game_stats fps
-            JOIN dim_game g ON g.game_key = fps.game_key
-            WHERE fps.team_key = t.team_key
-              AND g.source_game_id LIKE '002%%'
-        )
+        JOIN fact_player_game_stats fps
+          ON fps.team_key = t.team_key
+        JOIN dim_game g
+          ON g.game_key = fps.game_key
+        LEFT JOIN dim_date d
+          ON d.date_key = g.game_date_key
+        WHERE g.source_game_id LIKE '002%%'
+        GROUP BY t.team_key, t.team_tricode, t.team_city, t.team_name
         ORDER BY t.team_name ASC
         """
     )
+
     rows = []
     for row in cursor.fetchall():
-        team_id, tricode, city, name = row
+        team_id, tricode, city, name, years_csv = row
+        years = [int(year) for year in years_csv.split(",") if year]
+
         rows.append(
             {
                 "id": team_id,
                 "tricode": tricode,
                 "name": format_team_display_name(city, name),
-                "years": [],
+                "years": years,
                 "top_scorer": "Coming soon",
                 "top_assist": "Coming soon",
             }
@@ -375,7 +461,6 @@ def mysql_get_teams_query():
     cursor.close()
     conn.close()
     return ["id", "tricode", "name", "years", "top_scorer", "top_assist"], rows
-
 
 def mysql_get_other_teams_query():
     """Return (columns, rows) for non-NBA-regular-season teams."""
@@ -449,8 +534,12 @@ def mysql_get_team_detail_query(team_id: int) -> dict[str, object] | None:
                 ''
             ) AS years_csv
         FROM dim_team AS t
-        LEFT JOIN fact_player_game_stats fps ON fps.team_key = t.team_key
-        LEFT JOIN dim_date d ON d.date_key = fps.date_key
+        LEFT JOIN fact_player_game_stats fps
+          ON fps.team_key = t.team_key
+        LEFT JOIN dim_game g
+          ON g.game_key = fps.game_key
+        LEFT JOIN dim_date d
+          ON d.date_key = g.game_date_key
         WHERE t.team_key = %s
         GROUP BY t.team_key, t.team_tricode, t.team_city, t.team_name
         """,
@@ -503,13 +592,12 @@ def mysql_get_team_detail_query(team_id: int) -> dict[str, object] | None:
         "games_count": games_count,
         "players_count": players_count,
         "total_points": total_points,
-        "years": [year for year in years_csv.split(",") if year],
+        "years": [int(year) for year in years_csv.split(",") if year],
         "top_scorer": top_scorer_row[0] if top_scorer_row else "No data",
         "top_assist": top_assist_row[0] if top_assist_row else "No data",
     }
 
 
-@lru_cache(maxsize=32)
 def mysql_year_query():
     """Return (columns, rows) for MySQL year statistics."""
     from src.clients.mysql_client import connect_mysql
@@ -559,7 +647,6 @@ def mysql_year_query():
     return columns, rows
 
 
-@lru_cache(maxsize=32)
 def mysql_get_season_detail_query(season_label: str) -> dict[str, object] | None:
     """Return one MySQL season detail payload."""
     from src.clients.mysql_client import connect_mysql
@@ -913,6 +1000,80 @@ def mysql_get_missing_season_games_count() -> int:
     """Return count of games missing a MySQL season label."""
     return len(mysql_get_missing_season_games_query()[1])
 
+def mongodb_get_team_detail_query(team_id: int) -> dict[str, object] | None:
+    """Return one MongoDB team detail payload."""
+    from src.clients.mongodb_client import connect_mongodb
+
+    db = connect_mongodb()
+
+    summary_pipeline = [
+        {"$match": {"team.sourceTeamId": team_id}},
+        {
+            "$group": {
+                "_id": {
+                    "id": "$team.sourceTeamId",
+                    "tricode": "$team.teamTricode",
+                    "city": "$team.teamCity",
+                    "name": "$team.teamName",
+                },
+                "games": {"$addToSet": "$sourceGameId"},
+                "players": {"$addToSet": "$player.sourcePersonId"},
+                "total_points": {"$sum": "$stats.points"},
+                "years": {"$addToSet": {"$year": "$gameDate"}},
+            }
+        },
+    ]
+
+    summary_docs = list(db.player_game_stats.aggregate(summary_pipeline))
+    if not summary_docs:
+        return None
+
+    doc = summary_docs[0]
+
+    top_scorer_pipeline = [
+        {"$match": {"team.sourceTeamId": team_id}},
+        {
+            "$group": {
+                "_id": "$player.displayName",
+                "total_points": {"$sum": "$stats.points"},
+            }
+        },
+        {"$sort": {"total_points": -1, "_id": 1}},
+        {"$limit": 1},
+    ]
+
+    top_assist_pipeline = [
+        {"$match": {"team.sourceTeamId": team_id}},
+        {
+            "$group": {
+                "_id": "$player.displayName",
+                "total_assists": {"$sum": "$stats.assists"},
+            }
+        },
+        {"$sort": {"total_assists": -1, "_id": 1}},
+        {"$limit": 1},
+    ]
+
+    top_scorer_doc = next(iter(db.player_game_stats.aggregate(top_scorer_pipeline)), None)
+    top_assist_doc = next(iter(db.player_game_stats.aggregate(top_assist_pipeline)), None)
+
+    team_meta = doc["_id"]
+    years = sorted(int(year) for year in doc.get("years", []) if year is not None)
+
+    return {
+        "id": int(team_meta["id"]),
+        "tricode": team_meta["tricode"],
+        "city": team_meta["city"],
+        "name": team_meta["name"],
+        "full_name": format_team_display_name(team_meta["city"], team_meta["name"]),
+        "games_count": len(doc.get("games", [])),
+        "players_count": len(doc.get("players", [])),
+        "total_points": int(doc.get("total_points", 0)),
+        "years": years,
+        "top_scorer": top_scorer_doc["_id"] if top_scorer_doc else "No data",
+        "top_assist": top_assist_doc["_id"] if top_assist_doc else "No data",
+    }
+
 
 def mongodb_team_query():
     """Return (columns, rows) for MongoDB team statistics."""
@@ -1096,7 +1257,6 @@ def mongodb_year_query():
     return columns, rows
 
 
-@lru_cache(maxsize=32)
 def mongodb_get_season_detail_query(season_label: str) -> dict[str, object] | None:
     """Return one MongoDB season detail payload."""
     from src.clients.mongodb_client import connect_mongodb
@@ -1216,6 +1376,70 @@ def mongodb_get_season_detail_query(season_label: str) -> dict[str, object] | No
 
     return build_season_payload(season_label, team_game_rows, leaders, playoff_team_game_rows)
 
+def neo4j_get_team_detail_query(team_id: int) -> dict[str, object] | None:
+    """Return one Neo4j team detail payload."""
+    from src.clients.neo4j_client import connect_neo4j
+
+    driver = connect_neo4j()
+
+    summary_query = """
+    MATCH (team:Team {sourceTeamId: $team_id})
+    OPTIONAL MATCH (g:Game)<-[played:PLAYED_IN]-(:Player)
+    WHERE played.sourceTeamId = $team_id
+    OPTIONAL MATCH (g)-[:ON_DATE]->(d:Date)
+    RETURN
+        team.sourceTeamId AS id,
+        team.teamTricode AS tricode,
+        team.teamCity AS city,
+        team.teamName AS name,
+        count(DISTINCT g.sourceGameId) AS games_count,
+        count(DISTINCT played.sourcePersonId) AS players_count,
+        coalesce(sum(played.points), 0) AS total_points,
+        collect(DISTINCT d.yearNum) AS years
+    """
+
+    top_scorer_query = """
+    MATCH (:Game)<-[played:PLAYED_IN]-(player:Player)
+    WHERE played.sourceTeamId = $team_id
+    RETURN player.displayName AS player_name, sum(played.points) AS total_points
+    ORDER BY total_points DESC, player_name ASC
+    LIMIT 1
+    """
+
+    top_assist_query = """
+    MATCH (:Game)<-[played:PLAYED_IN]-(player:Player)
+    WHERE played.sourceTeamId = $team_id
+    RETURN player.displayName AS player_name, sum(played.assists) AS total_assists
+    ORDER BY total_assists DESC, player_name ASC
+    LIMIT 1
+    """
+
+    with driver.session() as session:
+        summary = session.run(summary_query, team_id=team_id).single()
+        if summary is None or summary["id"] is None:
+            driver.close()
+            return None
+
+        top_scorer = session.run(top_scorer_query, team_id=team_id).single()
+        top_assist = session.run(top_assist_query, team_id=team_id).single()
+
+    driver.close()
+
+    years = sorted(int(year) for year in summary["years"] if year is not None)
+
+    return {
+        "id": int(summary["id"]),
+        "tricode": summary["tricode"],
+        "city": summary["city"],
+        "name": summary["name"],
+        "full_name": format_team_display_name(summary["city"], summary["name"]),
+        "games_count": int(summary["games_count"]),
+        "players_count": int(summary["players_count"]),
+        "total_points": int(summary["total_points"]),
+        "years": years,
+        "top_scorer": top_scorer["player_name"] if top_scorer else "No data",
+        "top_assist": top_assist["player_name"] if top_assist else "No data",
+    }
 
 def neo4j_team_query():
     """Return (columns, rows) for Neo4j team statistics."""
@@ -1223,16 +1447,74 @@ def neo4j_team_query():
 
     driver = connect_neo4j()
 
-    # TODO: write your Neo4j team Cypher query here
-    # Example:
-    # with driver.session() as session:
-    #     result = session.run("MATCH ... RETURN ...")
-    #     columns = result.keys()
-    #     rows = [record.values() for record in result]
+    team_query = """
+    MATCH (g:Game)<-[played:PLAYED_IN]-(:Player)
+    MATCH (team:Team {sourceTeamId: played.sourceTeamId})
+    WHERE g.sourceGameId STARTS WITH '002'
+    OPTIONAL MATCH (g)-[:ON_DATE]->(d:Date)
+    WITH team,
+         collect(DISTINCT d.yearNum) AS years
+    RETURN
+        team.sourceTeamId AS id,
+        team.teamTricode AS tricode,
+        team.teamCity AS city,
+        team.teamName AS name_raw,
+        [year IN years WHERE year IS NOT NULL] AS years
+    ORDER BY name_raw ASC
+    """
 
-    columns, rows = [], []
+    top_scorer_query = """
+    MATCH (g:Game)<-[played:PLAYED_IN]-(player:Player)
+    MATCH (team:Team {sourceTeamId: played.sourceTeamId})
+    WHERE g.sourceGameId STARTS WITH '002'
+    WITH team.sourceTeamId AS team_id,
+         player.displayName AS player_name,
+         sum(played.points) AS total_points
+    ORDER BY team_id ASC, total_points DESC, player_name ASC
+    WITH team_id, collect(player_name)[0] AS top_scorer
+    RETURN team_id, top_scorer
+    """
+
+    top_assist_query = """
+    MATCH (g:Game)<-[played:PLAYED_IN]-(player:Player)
+    MATCH (team:Team {sourceTeamId: played.sourceTeamId})
+    WHERE g.sourceGameId STARTS WITH '002'
+    WITH team.sourceTeamId AS team_id,
+         player.displayName AS player_name,
+         sum(played.assists) AS total_assists
+    ORDER BY team_id ASC, total_assists DESC, player_name ASC
+    WITH team_id, collect(player_name)[0] AS top_assist
+    RETURN team_id, top_assist
+    """
+
+    with driver.session() as session:
+        team_rows = [record.data() for record in session.run(team_query)]
+        scorer_rows = [record.data() for record in session.run(top_scorer_query)]
+        assist_rows = [record.data() for record in session.run(top_assist_query)]
 
     driver.close()
+
+    scorer_map = {int(row["team_id"]): row["top_scorer"] for row in scorer_rows}
+    assist_map = {int(row["team_id"]): row["top_assist"] for row in assist_rows}
+
+    rows = []
+    for row in team_rows:
+        team_id = int(row["id"])
+        years = sorted(int(year) for year in row.get("years", []) if year is not None)
+
+        rows.append(
+            {
+                "id": team_id,
+                "tricode": row.get("tricode", ""),
+                "name": format_team_display_name(row.get("city"), row.get("name_raw")),
+                "years": years,
+                "top_scorer": scorer_map.get(team_id, "No data"),
+                "top_assist": assist_map.get(team_id, "No data"),
+            }
+        )
+
+    rows.sort(key=lambda row: row["name"])
+    columns = ["id", "tricode", "name", "years", "top_scorer", "top_assist"]
     return columns, rows
 
 
@@ -1266,7 +1548,6 @@ def neo4j_year_query():
     return columns, rows
 
 
-@lru_cache(maxsize=32)
 def neo4j_get_season_detail_query(season_label: str) -> dict[str, object] | None:
     """Return one Neo4j season detail payload."""
     from src.clients.neo4j_client import connect_neo4j
@@ -1363,6 +1644,95 @@ def neo4j_get_season_detail_query(season_label: str) -> dict[str, object] | None
 
     return build_season_payload(season_label, team_game_rows, leaders, playoff_team_game_rows)
 
+def get_ksql_team_leaderboard() -> list[dict[str, object]]:
+    snapshot = STREAM_CACHE.snapshot()
+    rows = snapshot["teams"]
+
+    formatted = []
+    for row in rows:
+        team_tricode = str(row.get("team_tricode") or "").strip()
+
+        # Only real NBA teams
+        if team_tricode not in VALID_NBA_TRICODES:
+            continue
+
+        games_seen = int(row.get("games_seen", 0) or 0)
+        total_points = int(row.get("total_points", 0) or 0)
+
+        formatted.append(
+            {
+                "team_id": int(row["team_id"]),
+                "team_tricode": team_tricode,
+                "team_name": format_team_display_name(
+                    row.get("team_city"),
+                    row.get("team_name_raw"),
+                ),
+                "games_seen": games_seen,
+                "total_points": total_points,
+                "points_per_game": round(total_points / games_seen, 2) if games_seen else 0.0,
+                "total_assists": int(row.get("total_assists", 0) or 0),
+                "total_rebounds": int(row.get("total_rebounds", 0) or 0),
+                "total_turnovers": int(row.get("total_turnovers", 0) or 0),
+            }
+        )
+
+    formatted.sort(
+        key=lambda r: (
+            -r["total_points"],
+            -r["points_per_game"],
+            r["team_name"],
+        )
+    )
+    return formatted
+
+
+def get_ksql_player_leaders() -> dict[str, list[dict[str, object]]]:
+    snapshot = STREAM_CACHE.snapshot()
+    players = [
+        row
+        for row in snapshot["players"]
+        if str(row.get("team_tricode") or "").strip() in VALID_NBA_TRICODES
+    ]
+
+    top_scorers = sorted(
+        players,
+        key=lambda r: (-int(r["total_points"]), str(r.get("display_name") or "")),
+    )[:5]
+
+    top_assists = sorted(
+        players,
+        key=lambda r: (-int(r["total_assists"]), str(r.get("display_name") or "")),
+    )[:5]
+
+    top_rebounds = sorted(
+        players,
+        key=lambda r: (-int(r["total_rebounds"]), str(r.get("display_name") or "")),
+    )[:5]
+
+    return {
+        "top_scorers": top_scorers,
+        "top_assists": top_assists,
+        "top_rebounds": top_rebounds,
+    }
+
+
+def get_ksql_dashboard_payload() -> dict[str, object]:
+    snapshot = STREAM_CACHE.snapshot()
+    team_leaderboard = get_ksql_team_leaderboard()
+    leaders = get_ksql_player_leaders()
+
+    return {
+        "ready": snapshot["ready"],
+        "last_update_ts": snapshot["last_update_ts"],
+        "team_leaderboard": team_leaderboard,
+        "top_scorers": leaders["top_scorers"],
+        "top_assists": leaders["top_assists"],
+        "top_rebounds": leaders["top_rebounds"],
+    }
+
+def ensure_stream_cache_started() -> None:
+    STREAM_CACHE.start()
+
 
 YEAR_DETAIL_DISPATCH = {
     "mysql": mysql_get_season_detail_query,
@@ -1370,6 +1740,11 @@ YEAR_DETAIL_DISPATCH = {
     "neo4j": neo4j_get_season_detail_query,
 }
 
+TEAM_DETAIL_DISPATCH = {
+    "mysql": mysql_get_team_detail_query,
+    "mongodb": mongodb_get_team_detail_query,
+    "neo4j": neo4j_get_team_detail_query,
+}
 
 # Dispatch table mapping (db, category) -> query function
 QUERY_DISPATCH = {
@@ -1442,10 +1817,8 @@ def other_teams(db):
 def team_detail(db, team_id):
     if db not in VALID_DBS:
         abort(404)
-    if db != "mysql":
-        abort(404)
 
-    team_data = mysql_get_team_detail_query(team_id)
+    team_data = TEAM_DETAIL_DISPATCH[db](team_id)
     if team_data is None:
         abort(404)
 
@@ -1489,6 +1862,17 @@ def missing_season_games(db):
 
     columns, rows = mysql_get_missing_season_games_query()
     return render_template("missing_season_games.html", db=db, columns=columns, rows=rows)
+
+@app.route("/stream")
+def stream_dashboard():
+    ensure_stream_cache_started()
+    return render_template("stream.html")
+
+
+@app.route("/api/stream")
+def stream_dashboard_api():
+    ensure_stream_cache_started()
+    return jsonify(get_ksql_dashboard_payload())
 
 
 if __name__ == "__main__":

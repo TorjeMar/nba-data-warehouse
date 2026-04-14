@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import time
 from typing import Callable
 
 from kafka import KafkaConsumer
+from tqdm import tqdm
 
 from src.clients.neo4j_client import connect_neo4j
 from src.etl.load_neo4j import load_neo4j_records
@@ -45,14 +47,19 @@ def build_consumer(topic: str, broker: str, group_id: str) -> KafkaConsumer:
     )
 
 
-def flush_batch(driver, batch: list, commit_fn: Callable[[], None], stats: dict[str, int]) -> None:
+def flush_batch(driver, batch: list, commit_fn: Callable[[], None], stats: dict[str, int]) -> int:
     if not batch:
-        return
+        return 0
+
     loaded = load_neo4j_records(driver, batch)
     commit_fn()
+
     stats["loaded"] += loaded
     stats["flushes"] += 1
+
+    flushed_count = len(batch)
     batch.clear()
+    return flushed_count
 
 
 def run_consumer(
@@ -66,9 +73,29 @@ def run_consumer(
 ) -> dict[str, int]:
     consumer = build_consumer(topic, broker, group_id)
     driver = connect_neo4j()
+
     batch = []
-    stats = {"consumed": 0, "loaded": 0, "invalid": 0, "failed": 0, "flushes": 0}
+    stats = {
+        "consumed": 0,
+        "loaded": 0,
+        "invalid": 0,
+        "failed": 0,
+        "flushes": 0,
+    }
     last_flush = time.monotonic()
+
+    progress = tqdm(
+        total=limit,
+        desc="Neo4j",
+        unit="ev",
+        file=sys.stdout,
+        dynamic_ncols=False,
+        ncols=100,
+        mininterval=0.2,
+        maxinterval=0.5,
+        smoothing=0.1,
+        leave=True,
+    )
 
     try:
         while limit is None or stats["consumed"] < limit:
@@ -80,11 +107,19 @@ def run_consumer(
                 for message in messages:
                     if limit is not None and stats["consumed"] >= limit:
                         break
+
                     stats["consumed"] += 1
+                    progress.update(1)
+
                     try:
                         batch.append(event_to_warehouse_record(message.value))
                     except Exception:
                         stats["invalid"] += 1
+
+                    progress.set_postfix_str(
+                        f"loaded={stats['loaded']} batch={len(batch)} flushes={stats['flushes']} invalid={stats['invalid']}",
+                        refresh=False,
+                    )
 
             now = time.monotonic()
             should_flush = len(batch) >= batch_size or (batch and now - last_flush >= flush_interval_seconds)
@@ -93,6 +128,11 @@ def run_consumer(
                 try:
                     flush_batch(driver, batch, consumer.commit, stats)
                     last_flush = now
+
+                    progress.set_postfix_str(
+                        f"loaded={stats['loaded']} batch={len(batch)} flushes={stats['flushes']} invalid={stats['invalid']}",
+                        refresh=False,
+                    )
                 except Exception:
                     stats["failed"] += len(batch)
                     raise
@@ -101,9 +141,21 @@ def run_consumer(
                 flush_batch(driver, batch, consumer.commit, stats)
                 last_flush = now
 
+                progress.set_postfix_str(
+                    f"loaded={stats['loaded']} batch={len(batch)} flushes={stats['flushes']} invalid={stats['invalid']}",
+                    refresh=False,
+                )
+
         if batch:
             flush_batch(driver, batch, consumer.commit, stats)
+
+            progress.set_postfix_str(
+                f"loaded={stats['loaded']} batch={len(batch)} flushes={stats['flushes']} invalid={stats['invalid']}",
+                refresh=False,
+            )
+
     finally:
+        progress.close()
         consumer.close()
         driver.close()
 
