@@ -6,7 +6,7 @@
 <div class="home-hero">
     <p class="home-kicker">IKT453 Data Warehouse</p>
     <h1>Basketball Data Warehouse</h1>
-    <p class="home-subtitle">Explore NBA box score data across three warehouse implementations. Choose a database backend to begin.</p>
+    <p class="home-subtitle">Explore NBA box score data across warehouse backends and a live streaming dashboard.</p>
 </div>
 
 <div class="cards">
@@ -29,6 +29,13 @@
         <h3>Neo4j</h3>
         <p>Graph model with player-game relationships</p>
         <span class="card-arrow">Explore &rarr;</span>
+    </a>
+
+    <a class="card card-stream" href="/stream">
+        <p class="card-kicker">Streaming</p>
+        <h3>Live Dashboard</h3>
+        <p>Watch ksqlDB aggregates update while Kafka events are streamed</p>
+        <span class="card-arrow">Open dashboard &rarr;</span>
     </a>
 </div>
 
@@ -78,14 +85,17 @@
     .card-mysql { --accent: #174ea6; }
     .card-mongodb { --accent: #00684a; }
     .card-neo4j { --accent: #018bff; }
+    .card-stream { --accent: #7c3aed; }
 
     .card-mysql::after { background: linear-gradient(90deg, #174ea6 0%, #4285f4 100%); }
     .card-mongodb::after { background: linear-gradient(90deg, #00684a 0%, #00ed64 100%); }
     .card-neo4j::after { background: linear-gradient(90deg, #018bff 0%, #68d4f8 100%); }
+    .card-stream::after { background: linear-gradient(90deg, #7c3aed 0%, #22d3ee 100%); }
 
     .card-mysql .card-kicker { color: #174ea6; }
     .card-mongodb .card-kicker { color: #00684a; }
     .card-neo4j .card-kicker { color: #018bff; }
+    .card-stream .card-kicker { color: #7c3aed; }
 
     .card-arrow {
         display: block;
