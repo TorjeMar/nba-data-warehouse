@@ -41,4 +41,13 @@ TEAM_CONFERENCES = {
     "SAC": "West",
     "SAS": "West",
     "UTA": "West",
+    # legacy / historical tricodes
+    "NJN": "East",
+    "NOH": "East",
+    "CHH": "East",
+    "BRK": "East",
+    "SEA": "West",
+    "VAN": "West",
+    "NOK": "West",
 }
+VALID_NBA_TRICODES = set(TEAM_CONFERENCES.keys())

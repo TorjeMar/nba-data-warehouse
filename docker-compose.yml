@@ -68,7 +68,8 @@ services:
     entrypoint: ["/init/init-neo4j.sh"]
     environment:
       NEO4J_AUTH: neo4j/${DB_PASSWORD}
-      DB_PASSWORD: ${DB_PASSWORD}
+      NEO4J_dbms_security_auth__minimum__password__length: 3
+      INIT_NEO4J_PASSWORD: ${DB_PASSWORD}
     ports:
       - "7474:7474"
       - "7687:7687"
@@ -111,6 +112,40 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+  ksqldb-server:
+    image: confluentinc/cp-ksqldb-server:6.0.1
+    platform: linux/amd64
+    container_name: ksqldb-server
+    depends_on:
+      - broker
+    ports:
+      - "8088:8088"
+    environment:
+      KSQL_BOOTSTRAP_SERVERS: broker:9092
+      KSQL_LISTENERS: http://0.0.0.0:8088
+      KSQL_KSQL_SERVICE_ID: ikt453_ksql_
+      KSQL_KSQL_STREAMS_AUTO_OFFSET_RESET: earliest
+
+  ksqldb-init:
+    image: curlimages/curl:8.10.1
+    container_name: ksqldb-init
+    depends_on:
+      - ksqldb-server
+    volumes:
+      - ./sql/ksql/001_live_dashboard.sql:/init/001_live_dashboard.sql:ro
+      - ./sql/ksql/init-ksql.sh:/init/init-ksql.sh:ro
+    entrypoint: ["/bin/sh", "/init/init-ksql.sh"]
+    restart: "no"
+
+  ksqldb-cli:
+    image: confluentinc/cp-ksqldb-cli:6.0.1
+    platform: linux/amd64
+    container_name: ksqldb-cli
+    depends_on:
+      - ksqldb-server
+    entrypoint: /bin/sh
+    tty: true
 
 volumes:
   ikt453_mysql_data:
