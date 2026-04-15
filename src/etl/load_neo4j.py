@@ -38,7 +38,7 @@ MERGE (:Position {positionCode: row.positionCode})
 MERGE_GAMES = """
 UNWIND $rows AS row
 MERGE (g:Game {sourceGameId: row.sourceGameId})
-SET g.seasonLabel = row.seasonLabel, g.matchupLabel = row.matchupLabel
+SET g.gameType = row.gameType, g.seasonLabel = row.seasonLabel, g.matchupLabel = row.matchupLabel
 """
 
 MERGE_DATES = """

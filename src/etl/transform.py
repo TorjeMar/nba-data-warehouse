@@ -13,6 +13,7 @@ from src.etl.game_metadata import (
     _GAMES_DICT,
     get_game_date,
     get_game_season,
+    get_game_type,
     get_home_or_away,
     get_matchup_type,
     get_team_game_metadata,
@@ -86,6 +87,18 @@ def _display_name(first_name: str | None, family_name: str | None, fallback: str
     return "Unknown Player"
 
 
+def _infer_game_type(source_game_id: str) -> str:
+    prefix = source_game_id[:3]
+    game_type_map = {
+        "001": "preseason",
+        "002": "regular_season",
+        "003": "all_star",
+        "004": "playoffs",
+        "005": "play_in",
+    }
+    return game_type_map.get(prefix, "unknown")
+
+
 def _sorted_row_keys(column_map: dict[str, Any]) -> list[str]:
     sample = next(iter(column_map.values()), {})
     if not isinstance(sample, dict):
@@ -114,6 +127,7 @@ def build_metadata(row: dict[str, Any], games_dict: dict[str, list[dict]]) -> di
     source_team_id = _to_int(row.get("teamId"))
     game_metadata = get_team_game_metadata(game_id, source_team_id, games_dict)
     return {
+        "game_type": get_game_type(game_metadata) or _infer_game_type(game_id),
         "season_label": get_game_season(game_metadata) or "",
         "game_date": get_game_date(game_metadata),
         "matchup_label": get_matchup_type(game_metadata) or "",

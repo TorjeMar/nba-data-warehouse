@@ -52,7 +52,14 @@ def load_all_seasons(season_labels: list[str], season_types: list[str]) -> dict[
     for season_label in season_labels:
         for season_type in season_types:
             key = f"{season_label}_{season_type}"
-            all_data[key] = load_season(season_label, season_type)
+            rows = load_season(season_label, season_type)
+            enriched_rows = []
+            for row in rows:
+                enriched = dict(row)
+                enriched["SEASON_LABEL"] = season_label
+                enriched["SEASON_TYPE"] = season_type
+                enriched_rows.append(enriched)
+            all_data[key] = enriched_rows
     return all_data
 
 def build_games_dict(season_labels: list[str], season_types: list[str]) -> dict[str, list[dict]]:
@@ -106,6 +113,14 @@ def get_game_date(row: dict) -> datetime | None:
 
 
 def get_game_season(row: dict) -> str | None:
+    season_label = row.get("SEASON_LABEL")
+    if season_label is None and isinstance(row.get("game_metadata"), dict):
+        season_label = row["game_metadata"].get("SEASON_LABEL")
+    if isinstance(season_label, str):
+        normalized = season_label.strip()
+        if normalized:
+            return normalized
+
     game_date = get_game_date(row)
     if game_date is None:
         return None
@@ -116,6 +131,25 @@ def get_game_season(row: dict) -> str | None:
     if month >= 10:  # October or later means season starts in this year
         return f"{year}-{str(year + 1)[-2:]}"
     return f"{year - 1}-{str(year)[-2:]}"
+
+
+def get_game_type(row: dict) -> str | None:
+    season_type = row.get("SEASON_TYPE")
+    if season_type is None and isinstance(row.get("game_metadata"), dict):
+        season_type = row["game_metadata"].get("SEASON_TYPE")
+
+    if not isinstance(season_type, str):
+        return None
+
+    normalized = season_type.strip().lower()
+    game_type_map = {
+        "regular season": "regular_season",
+        "playoffs": "playoffs",
+        "pre season": "preseason",
+        "all star": "all_star",
+        "playin": "play_in",
+    }
+    return game_type_map.get(normalized)
 
 def get_matchup_type(row: dict) -> str | None:
     matchup = row.get("MATCHUP")

@@ -21,7 +21,8 @@ MERGE (position:Position {positionCode: coalesce(row.positionCode, "")})
 MERGE (player)-[:HAS_POSITION]->(position)
 
 MERGE (game:Game {sourceGameId: row.sourceGameId})
-SET game.seasonLabel = row.seasonLabel,
+SET game.gameType = row.gameType,
+    game.seasonLabel = row.seasonLabel,
     game.matchupLabel = row.matchupLabel
 
 FOREACH (_ IN CASE WHEN row.gameDate IS NULL THEN [] ELSE [1] END |

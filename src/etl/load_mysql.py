@@ -62,11 +62,12 @@ ON DUPLICATE KEY UPDATE
 
 MYSQL_UPSERT_GAME = """
 INSERT INTO dim_game (
-    source_game_id, season_label, game_date_key, matchup_label, home_team_key, away_team_key
+    source_game_id, game_type, season_label, game_date_key, matchup_label, home_team_key, away_team_key
 ) VALUES (
-    %(source_game_id)s, %(season_label)s, %(game_date_key)s, %(matchup_label)s, %(home_team_key)s, %(away_team_key)s
+    %(source_game_id)s, %(game_type)s, %(season_label)s, %(game_date_key)s, %(matchup_label)s, %(home_team_key)s, %(away_team_key)s
 )
 ON DUPLICATE KEY UPDATE
+    game_type = COALESCE(VALUES(game_type), game_type),
     season_label = COALESCE(VALUES(season_label), season_label),
     game_date_key = COALESCE(VALUES(game_date_key), game_date_key),
     matchup_label = COALESCE(VALUES(matchup_label), matchup_label),
@@ -232,6 +233,7 @@ def load_mysql_records(connection: MySQLConnection, records: Iterable[WarehouseR
 
             game_rows[record.source_game_id] = {
                 "source_game_id": record.source_game_id,
+                "game_type": record.game_type,
                 "season_label": record.season_label,
                 "matchup_label": record.matchup_label,
                 "home_team_key": None,

@@ -25,6 +25,11 @@ db.player_game_stats.createIndex(
   { name: "idx_season_player_team" }
 );
 
+db.player_game_stats.createIndex(
+  { gameType: 1, seasonLabel: 1, sourceGameId: 1, "team.sourceTeamId": 1 },
+  { name: "idx_game_type_season_team" }
+);
+
 db.teams.createIndex(
   { sourceTeamId: 1 },
   { unique: true, name: "uq_team_source_id" }

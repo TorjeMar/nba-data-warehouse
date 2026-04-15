@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS dim_position (
 CREATE TABLE IF NOT EXISTS dim_game (
     game_key BIGINT AUTO_INCREMENT PRIMARY KEY,
     source_game_id VARCHAR(20) NOT NULL UNIQUE,
+    game_type VARCHAR(30) NULL,
     game_date_key INT NULL,
     season_label VARCHAR(20) NULL,
     matchup_label VARCHAR(120) NULL,
@@ -56,6 +57,8 @@ CREATE TABLE IF NOT EXISTS dim_game (
     CONSTRAINT fk_dim_game_away_team
         FOREIGN KEY (away_team_key) REFERENCES dim_team(team_key)
 );
+
+CREATE INDEX idx_dim_game_type_season ON dim_game(game_type, season_label);
 
 CREATE TABLE IF NOT EXISTS fact_player_game_stats (
     player_game_stat_key BIGINT AUTO_INCREMENT PRIMARY KEY,
