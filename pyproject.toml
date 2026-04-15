@@ -6,12 +6,12 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "flask>=3.0.0",
-    "kafka-python>=2.0.2",
-    "flask>=3.0.0",
+    "kafka-python>=2.0.2,<2.1",
     "mysql-connector-python>=9.0.0",
     "nba_api>=1.7.0",
     "neo4j>=5.28.0",
     "pymongo>=4.10.0",
     "python-dotenv==1.2.2",
     "tqdm==4.67.3",
+    "pytest>=8.0.0",
 ]
