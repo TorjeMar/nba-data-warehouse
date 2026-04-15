@@ -34,6 +34,18 @@ def get_year_detail_dispatch():
     }
 
 
+def get_team_detail_dispatch():
+    from src.frontend.backend.mongodb_queries import mongodb_get_team_detail_query
+    from src.frontend.backend.mysql_queries import mysql_get_team_detail_query
+    from src.frontend.backend.neo4j_queries import neo4j_get_team_detail_query
+
+    return {
+        "mysql": mysql_get_team_detail_query,
+        "mongodb": mongodb_get_team_detail_query,
+        "neo4j": neo4j_get_team_detail_query,
+    }
+
+
 def register_routes(app) -> None:
     @app.route("/")
     def index():
@@ -94,12 +106,8 @@ def register_routes(app) -> None:
     def team_detail(db, team_id):
         if db not in VALID_DBS:
             abort(404)
-        if db != "mysql":
-            abort(404)
 
-        from src.frontend.backend.mysql_queries import mysql_get_team_detail_query
-
-        team_data = mysql_get_team_detail_query(team_id)
+        team_data = get_team_detail_dispatch()[db](team_id)
         if team_data is None:
             abort(404)
 

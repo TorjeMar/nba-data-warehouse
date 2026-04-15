@@ -22,7 +22,23 @@
                 <p class="team-kicker">{{ team.tricode }}</p>
                 <h2>{{ team.name }}</h2>
             </div>
-            <span class="team-pill">{{ team.years|length }} yr</span>
+            {% if team.titles %}
+            <span class="team-pill-titles">{{ team.titles }}&times; Champ</span>
+            {% endif %}
+        </div>
+        <div class="team-stats-row">
+            {% if team.top_scorer and team.top_scorer not in ["Coming soon", "No data"] %}
+            <div class="team-stat">
+                <span class="team-stat-label">Top Scorer</span>
+                <span class="team-stat-value">{{ team.top_scorer }}</span>
+            </div>
+            {% endif %}
+            {% if team.top_assist and team.top_assist not in ["Coming soon", "No data"] %}
+            <div class="team-stat">
+                <span class="team-stat-label">Top Assists</span>
+                <span class="team-stat-value">{{ team.top_assist }}</span>
+            </div>
+            {% endif %}
         </div>
         <div class="team-preview">
             <span class="team-link">View details</span>
@@ -48,8 +64,7 @@
 </div>
 {% else %}
 <div class="placeholder">
-    <p>No data yet — add your query in app.py</p>
-    <code>see the {{ db }}_get_teams_query() function</code>
+    <p>No team data available for {{ db | upper }} yet.</p>
 </div>
 {% endif %}
 
@@ -89,7 +104,8 @@
     }
 
     .team-card {
-        display: block;
+        display: flex;
+        flex-direction: column;
         text-decoration: none;
         position: relative;
         overflow: hidden;
@@ -147,23 +163,61 @@
         text-transform: uppercase;
     }
 
-    .team-pill {
+    .team-pill-titles {
+        flex-shrink: 0;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+        color: #92400e;
+        font-size: 0.74rem;
+        font-weight: 800;
+        border: 1px solid #f59e0b;
+    }
+
+    .team-pill-muted {
         flex-shrink: 0;
         padding: 6px 10px;
         border-radius: 999px;
-        background: #eef4ff;
-        color: #25457a;
+        background: #f1f5f9;
+        color: #475569;
         font-size: 0.76rem;
         font-weight: 700;
     }
 
-    .team-pill-muted {
-        background: #f1f5f9;
-        color: #475569;
+    .team-stats-row {
+        margin-top: 14px;
+        display: flex;
+        gap: 16px;
+        flex: 1;
+    }
+
+    .team-stat {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .team-stat-label {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #8a8f98;
+        margin-bottom: 2px;
+    }
+
+    .team-stat-value {
+        display: block;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #314054;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .team-preview {
-        margin-top: 16px;
+        margin-top: 14px;
         display: flex;
         align-items: center;
         justify-content: space-between;

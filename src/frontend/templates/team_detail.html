@@ -14,67 +14,163 @@
 </div>
 
 <section class="team-hero">
-    <p class="hero-kicker">{{ team.tricode }}</p>
-    <h1>{{ team.full_name }}</h1>
-    <p class="hero-subtitle">
-        Warehouse summary for one franchise across the records currently loaded into {{ db | upper }}.
-    </p>
+    <div class="hero-top">
+        <div>
+            <p class="hero-kicker">{{ team.tricode }}</p>
+            <h1>{{ team.full_name }}</h1>
+            <p class="hero-subtitle">
+                Franchise summary across all records loaded into {{ db | upper }}.
+            </p>
+        </div>
+        {% if team.titles %}
+        <div class="trophy-badge">
+            <span class="trophy-count">{{ team.titles }}</span>
+            <span class="trophy-label">{{ "Championship" if team.titles == 1 else "Championships" }}</span>
+            {% if team.title_seasons %}
+            <span class="trophy-years">{{ team.title_seasons | join(", ") }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
 </section>
 
-<section class="stat-grid stat-grid-3">
-    {% set summary_items = [
-        ("Games", team.games_count),
-        ("Players", team.players_count),
-        ("Total Points", team.total_points)
-    ] %}
-    {% for label, value in summary_items %}
-    <article class="stat-card">
-        <span class="stat-label">{{ label }}</span>
-        <strong class="stat-value stat-value-lg">{{ value }}</strong>
-    </article>
-    {% endfor %}
-</section>
+<div class="kpi-row">
+    <div class="kpi"><span>{{ team.games_count }}</span><small>Games</small></div>
+    <div class="kpi"><span>{{ team.players_count }}</span><small>Players</small></div>
+    <div class="kpi"><span>{{ team.total_points }}</span><small>Total Points</small></div>
+    <div class="kpi"><span>{{ team.ppg }}</span><small>Pts / Game</small></div>
+    <div class="kpi"><span>{{ team.apg }}</span><small>Ast / Game</small></div>
+    <div class="kpi"><span>{{ team.rpg }}</span><small>Reb / Game</small></div>
+</div>
 
-<section class="stat-grid stat-grid-2">
-    {% set detail_items = [
-        ("Top Scorer", team.top_scorer),
-        ("Top Assists", team.top_assist)
-    ] %}
-    {% for label, value in detail_items %}
-    <article class="stat-card">
-        <span class="stat-label">{{ label }}</span>
-        <strong class="stat-value">{{ value }}</strong>
-    </article>
-    {% endfor %}
+{% if team.top_players %}
+<section class="section">
+    <h2>Top Players</h2>
+    <div class="table-wrap">
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th class="col-rank">#</th>
+                    <th class="col-player">Player</th>
+                    <th>GP</th>
+                    <th>PTS</th>
+                    <th>PPG</th>
+                    <th>AST</th>
+                    <th>APG</th>
+                    <th>REB</th>
+                    <th>RPG</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in team.top_players %}
+                <tr>
+                    <td class="col-rank">{{ loop.index }}</td>
+                    <td class="col-player"><strong>{{ p.player_name }}</strong></td>
+                    <td>{{ p.games }}</td>
+                    <td><strong>{{ p.total_points }}</strong></td>
+                    <td>{{ p.ppg }}</td>
+                    <td>{{ p.total_assists }}</td>
+                    <td>{{ p.apg }}</td>
+                    <td>{{ p.total_rebounds }}</td>
+                    <td>{{ p.rpg }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </section>
+{% endif %}
 
-<section class="stat-card stat-card-wide">
-    <span class="stat-label">Years Covered</span>
-    {% if team.years %}
-    <ul class="year-chips">
-        {% for year in team.years %}
-        <li>{{ year }}</li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <p class="empty-text">No year breakdown available.</p>
-    {% endif %}
+{% if team.seasons %}
+<section class="section">
+    <h2>By Season</h2>
+    <div class="table-wrap">
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th class="col-season">Season</th>
+                    <th>Games</th>
+                    <th>Total Points</th>
+                    <th>Pts / Game</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in team.seasons %}
+                <tr>
+                    <td class="col-season">
+                        <a href="/{{ db }}/year/{{ s.season_label }}">{{ s.season_label }}</a>
+                    </td>
+                    <td>{{ s.games }}</td>
+                    <td><strong>{{ s.total_points }}</strong></td>
+                    <td>{{ s.ppg }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </section>
+{% endif %}
 
 <style>
+    .container { max-width: 1100px; }
+
     .team-hero {
-        margin-bottom: 1.8rem;
-        padding: 2rem;
-        border-radius: 22px;
+        margin-bottom: 1.4rem;
+        padding: 1.6rem 1.8rem;
+        border-radius: 16px;
         background:
             radial-gradient(circle at top right, rgba(23, 78, 166, 0.10), transparent 34%),
             linear-gradient(180deg, #ffffff 0%, #f5f8fc 100%);
         border: 1px solid #dbe1ea;
-        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+    }
+
+    .hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1.5rem;
+    }
+
+    .trophy-badge {
+        flex-shrink: 0;
+        text-align: center;
+        padding: 1rem 1.4rem;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #fffbeb, #fef3c7);
+        border: 1px solid #f59e0b;
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+    }
+
+    .trophy-count {
+        display: block;
+        font-size: 2rem;
+        font-weight: 800;
+        color: #92400e;
+        line-height: 1;
+    }
+
+    .trophy-label {
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #b45309;
+        margin-top: 0.2rem;
+    }
+
+    .trophy-years {
+        display: block;
+        font-size: 0.72rem;
+        color: #92400e;
+        margin-top: 0.4rem;
+        line-height: 1.4;
+        max-width: 160px;
     }
 
     .hero-kicker {
-        margin: 0 0 0.6rem;
+        margin: 0 0 0.4rem;
         color: #174ea6;
         font-size: 0.76rem;
         font-weight: 800;
@@ -90,82 +186,96 @@
         line-height: 1.5;
     }
 
-    .stat-grid {
-        display: grid;
-        gap: 16px;
-        margin-bottom: 1.2rem;
-    }
-
-    .stat-grid-3 { grid-template-columns: repeat(3, 1fr); }
-    .stat-grid-2 { grid-template-columns: repeat(2, 1fr); }
-
-    .stat-card {
-        padding: 1.3rem 1.4rem;
-        border-radius: 18px;
-        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-        border: 1px solid #d8dce3;
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
-    }
-
-    .stat-card-wide {
-        margin-bottom: 1.2rem;
-        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-    }
-
-    .stat-label {
-        display: block;
-        margin-bottom: 0.6rem;
-        font-size: 0.78rem;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: #5f6773;
-    }
-
-    .stat-value {
-        display: block;
-        margin: 0;
-        color: #152033;
-        font-size: 1.05rem;
-        font-weight: 700;
-        line-height: 1.4;
-    }
-
-    .stat-value-lg {
-        font-size: 1.6rem;
-        font-weight: 800;
-    }
-
-    .year-chips {
+    .kpi-row {
         display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        list-style: none;
-        padding: 0;
-        margin: 0;
+        gap: 1px;
+        background: #d8dce3;
+        border: 1px solid #d8dce3;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+    .kpi {
+        flex: 1;
+        background: #fff;
+        padding: 1rem 1.2rem;
+        text-align: center;
+    }
+    .kpi span {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #152033;
+    }
+    .kpi small {
+        color: #697385;
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
     }
 
-    .year-chips li {
-        padding: 7px 12px;
-        border-radius: 999px;
-        background: #ffffff;
+    .section { margin-bottom: 2.5rem; }
+    .section > h2 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        color: #152033;
+    }
+
+    .table-wrap {
         border: 1px solid #d8dce3;
-        color: #314054;
-        font-size: 0.84rem;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .detail-table {
+        border: none;
+        box-shadow: none;
+        border-radius: 0;
+    }
+    .detail-table th {
+        font-size: 0.72rem;
+        padding: 0.55rem 0.7rem;
+    }
+    .detail-table td {
+        padding: 0.55rem 0.7rem;
+        font-size: 0.88rem;
+    }
+    .col-rank {
+        width: 36px;
+        text-align: center;
+        color: #8a8f98;
+        font-weight: 700;
+    }
+    .col-player {
+        min-width: 160px;
+    }
+    .col-player strong {
+        color: #152033;
         font-weight: 600;
     }
-
-    .empty-text {
-        color: #8a8f98;
-        font-size: 0.94rem;
-        margin: 0;
+    .col-season {
+        min-width: 100px;
+    }
+    .col-season a {
+        color: #174ea6;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    .col-season a:hover {
+        text-decoration: underline;
     }
 
     @media (max-width: 720px) {
-        .stat-grid-3,
-        .stat-grid-2 {
-            grid-template-columns: 1fr;
-        }
+        .kpi-row { flex-wrap: wrap; }
+        .kpi { min-width: 30%; }
+        .table-wrap { overflow-x: auto; }
+    }
+
+    @media (max-width: 480px) {
+        .kpi { min-width: 45%; }
     }
 </style>
 {% endblock %}
