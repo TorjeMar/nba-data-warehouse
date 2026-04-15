@@ -18,41 +18,130 @@ def mysql_get_teams_query():
     conn = connect_mysql()
     cursor = conn.cursor()
 
+    # 1) team basics
     cursor.execute(
         """
-        SELECT
+        SELECT DISTINCT
             t.team_key AS id,
             t.team_tricode AS tricode,
             t.team_city AS city,
             t.team_name AS name
         FROM dim_team AS t
-        WHERE EXISTS (
-            SELECT 1
-            FROM fact_player_game_stats fps
-            JOIN dim_game g ON g.game_key = fps.game_key
-            WHERE fps.team_key = t.team_key
-              AND g.game_type = 'regular_season'
-        )
+        JOIN fact_player_game_stats fps ON fps.team_key = t.team_key
+        JOIN dim_game g ON g.game_key = fps.game_key AND g.game_type = 'regular_season'
         ORDER BY t.team_name ASC
         """
     )
+    team_rows = cursor.fetchall()
+
+    # 2) top scorer per team (one query for all teams)
+    cursor.execute(
+        """
+        WITH player_points AS (
+            SELECT
+                fps.team_key,
+                p.display_name,
+                SUM(fps.points) AS total_points,
+                ROW_NUMBER() OVER (
+                    PARTITION BY fps.team_key
+                    ORDER BY SUM(fps.points) DESC, p.display_name ASC
+                ) AS rn
+            FROM fact_player_game_stats fps
+            JOIN dim_player p ON p.player_key = fps.player_key
+            JOIN dim_game g ON g.game_key = fps.game_key AND g.game_type = 'regular_season'
+            GROUP BY fps.team_key, p.player_key, p.display_name
+        )
+        SELECT team_key, display_name
+        FROM player_points
+        WHERE rn = 1
+        """
+    )
+    scorer_map = {row[0]: row[1] for row in cursor.fetchall()}
+
+    # 3) top assist per team (one query for all teams)
+    cursor.execute(
+        """
+        WITH player_assists AS (
+            SELECT
+                fps.team_key,
+                p.display_name,
+                SUM(fps.assists) AS total_assists,
+                ROW_NUMBER() OVER (
+                    PARTITION BY fps.team_key
+                    ORDER BY SUM(fps.assists) DESC, p.display_name ASC
+                ) AS rn
+            FROM fact_player_game_stats fps
+            JOIN dim_player p ON p.player_key = fps.player_key
+            JOIN dim_game g ON g.game_key = fps.game_key AND g.game_type = 'regular_season'
+            GROUP BY fps.team_key, p.player_key, p.display_name
+        )
+        SELECT team_key, display_name
+        FROM player_assists
+        WHERE rn = 1
+        """
+    )
+    assist_map = {row[0]: row[1] for row in cursor.fetchall()}
+
+    # 4) championship wins per team
+    cursor.execute(
+        """
+        WITH finals_team_games AS (
+            SELECT
+                g.season_label,
+                f.team_key,
+                SUM(f.points) AS team_points,
+                g.game_key
+            FROM fact_player_game_stats f
+            JOIN dim_game g ON g.game_key = f.game_key
+            WHERE g.game_type = 'playoffs'
+              AND SUBSTRING(g.source_game_id, 8, 1) = '4'
+            GROUP BY g.season_label, g.game_key, f.team_key
+        ),
+        finals_game_winners AS (
+            SELECT
+                ftg.season_label,
+                ftg.team_key,
+                ftg.team_points,
+                ftg.game_key,
+                ROW_NUMBER() OVER (
+                    PARTITION BY ftg.game_key
+                    ORDER BY ftg.team_points DESC
+                ) AS rn
+            FROM finals_team_games ftg
+        ),
+        finals_series_wins AS (
+            SELECT
+                season_label,
+                team_key,
+                COUNT(*) AS wins
+            FROM finals_game_winners
+            WHERE rn = 1
+            GROUP BY season_label, team_key
+            HAVING COUNT(*) >= 4
+        )
+        SELECT team_key, COUNT(*) AS titles
+        FROM finals_series_wins
+        GROUP BY team_key
+        """
+    )
+    titles_map = {row[0]: row[1] for row in cursor.fetchall()}
+
     rows = []
-    for row in cursor.fetchall():
-        team_id, tricode, city, name = row
+    for team_id, tricode, city, name in team_rows:
         rows.append(
             {
                 "id": team_id,
                 "tricode": tricode,
                 "name": format_team_display_name(city, name),
-                "years": [],
-                "top_scorer": "Coming soon",
-                "top_assist": "Coming soon",
+                "top_scorer": scorer_map.get(team_id, "No data"),
+                "top_assist": assist_map.get(team_id, "No data"),
+                "titles": titles_map.get(team_id, 0),
             }
         )
 
     cursor.close()
     conn.close()
-    return ["id", "tricode", "name", "years", "top_scorer", "top_assist"], rows
+    return ["id", "tricode", "name", "top_scorer", "top_assist", "titles"], rows
 
 
 def mysql_get_other_teams_query():
@@ -87,15 +176,14 @@ def mysql_get_other_teams_query():
                 "id": team_id,
                 "tricode": tricode,
                 "name": format_team_display_name(city, name),
-                "years": [],
-                "top_scorer": "Coming soon",
-                "top_assist": "Coming soon",
+                "top_scorer": "No data",
+                "top_assist": "No data",
             }
         )
 
     cursor.close()
     conn.close()
-    return ["id", "tricode", "name", "years", "top_scorer", "top_assist"], rows
+    return ["id", "tricode", "name", "top_scorer", "top_assist"], rows
 
 
 def mysql_get_other_teams_count() -> int:
@@ -104,81 +192,143 @@ def mysql_get_other_teams_count() -> int:
 
 def mysql_get_team_detail_query(team_id: int) -> dict[str, object] | None:
     conn = connect_mysql()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT
+                t.team_key AS id,
+                t.team_tricode AS tricode,
+                t.team_city AS city,
+                t.team_name AS name,
+                COUNT(DISTINCT fps.game_key) AS games_count,
+                COUNT(DISTINCT fps.player_key) AS players_count,
+                COALESCE(SUM(fps.points), 0) AS total_points,
+                COALESCE(SUM(fps.assists), 0) AS total_assists,
+                COALESCE(SUM(fps.rebounds_total), 0) AS total_rebounds
+            FROM dim_team AS t
+            LEFT JOIN fact_player_game_stats fps ON fps.team_key = t.team_key
+            WHERE t.team_key = %s
+            GROUP BY t.team_key, t.team_tricode, t.team_city, t.team_name
+            """,
+            (team_id,),
+        )
+        team_row = cursor.fetchone()
+        if team_row is None:
+            return None
 
-    cursor.execute(
-        """
-        SELECT
-            t.team_key AS id,
-            t.team_tricode AS tricode,
-            t.team_city AS city,
-            t.team_name AS name,
-            COUNT(DISTINCT fps.game_key) AS games_count,
-            COUNT(DISTINCT fps.player_key) AS players_count,
-            COALESCE(SUM(fps.points), 0) AS total_points,
-            COALESCE(
-                GROUP_CONCAT(DISTINCT d.year_num ORDER BY d.year_num SEPARATOR ','),
-                ''
-            ) AS years_csv
-        FROM dim_team AS t
-        LEFT JOIN fact_player_game_stats fps ON fps.team_key = t.team_key
-        LEFT JOIN dim_date d ON d.date_key = fps.date_key
-        WHERE t.team_key = %s
-        GROUP BY t.team_key, t.team_tricode, t.team_city, t.team_name
-        """,
-        (team_id,),
-    )
-    team_row = cursor.fetchone()
-    if team_row is None:
+        games_count = int(team_row["games_count"]) or 1
+
+        cursor.execute(
+            """
+            SELECT
+                p.display_name AS player_name,
+                COUNT(DISTINCT fps.game_key) AS games,
+                SUM(fps.points) AS total_points,
+                ROUND(SUM(fps.points) / NULLIF(COUNT(DISTINCT fps.game_key), 0), 1) AS ppg,
+                SUM(fps.assists) AS total_assists,
+                ROUND(SUM(fps.assists) / NULLIF(COUNT(DISTINCT fps.game_key), 0), 1) AS apg,
+                SUM(fps.rebounds_total) AS total_rebounds,
+                ROUND(SUM(fps.rebounds_total) / NULLIF(COUNT(DISTINCT fps.game_key), 0), 1) AS rpg
+            FROM fact_player_game_stats fps
+            JOIN dim_player p ON p.player_key = fps.player_key
+            WHERE fps.team_key = %s
+            GROUP BY p.player_key, p.display_name
+            ORDER BY total_points DESC, p.display_name ASC
+            LIMIT 10
+            """,
+            (team_id,),
+        )
+        top_players = list(cursor.fetchall())
+
+        cursor.execute(
+            """
+            SELECT
+                g.season_label,
+                COUNT(DISTINCT fps.game_key) AS games,
+                SUM(fps.points) AS total_points,
+                ROUND(SUM(fps.points) / NULLIF(COUNT(DISTINCT fps.game_key), 0), 1) AS ppg
+            FROM fact_player_game_stats fps
+            JOIN dim_game g ON g.game_key = fps.game_key
+            WHERE fps.team_key = %s
+              AND g.season_label IS NOT NULL
+              AND TRIM(g.season_label) <> ''
+            GROUP BY g.season_label
+            ORDER BY g.season_label DESC
+            """,
+            (team_id,),
+        )
+        seasons = list(cursor.fetchall())
+
+        cursor.execute(
+            """
+            WITH finals_team_games AS (
+                SELECT
+                    g.season_label,
+                    f.team_key,
+                    SUM(f.points) AS team_points,
+                    g.game_key
+                FROM fact_player_game_stats f
+                JOIN dim_game g ON g.game_key = f.game_key
+                WHERE g.game_type = 'playoffs'
+                  AND SUBSTRING(g.source_game_id, 8, 1) = '4'
+                  AND f.team_key = %s
+                GROUP BY g.season_label, g.game_key, f.team_key
+            ),
+            finals_opponents AS (
+                SELECT
+                    g.season_label,
+                    f.team_key AS opp_key,
+                    SUM(f.points) AS opp_points,
+                    g.game_key
+                FROM fact_player_game_stats f
+                JOIN dim_game g ON g.game_key = f.game_key
+                WHERE g.game_type = 'playoffs'
+                  AND SUBSTRING(g.source_game_id, 8, 1) = '4'
+                  AND f.team_key <> %s
+                  AND g.game_key IN (SELECT game_key FROM finals_team_games)
+                GROUP BY g.season_label, g.game_key, f.team_key
+            ),
+            game_wins AS (
+                SELECT ftg.season_label
+                FROM finals_team_games ftg
+                JOIN finals_opponents fo
+                  ON fo.game_key = ftg.game_key
+                 AND fo.season_label = ftg.season_label
+                WHERE ftg.team_points > fo.opp_points
+            )
+            SELECT season_label
+            FROM game_wins
+            GROUP BY season_label
+            HAVING COUNT(*) >= 4
+            ORDER BY season_label DESC
+            """,
+            (team_id, team_id),
+        )
+        title_seasons = [row["season_label"] for row in cursor.fetchall()]
+
+        return {
+            "id": team_row["id"],
+            "tricode": team_row["tricode"],
+            "city": team_row["city"],
+            "name": team_row["name"],
+            "full_name": format_team_display_name(team_row["city"], team_row["name"]),
+            "games_count": team_row["games_count"],
+            "players_count": team_row["players_count"],
+            "total_points": team_row["total_points"],
+            "total_assists": team_row["total_assists"],
+            "total_rebounds": team_row["total_rebounds"],
+            "ppg": round(int(team_row["total_points"]) / games_count, 1),
+            "apg": round(int(team_row["total_assists"]) / games_count, 1),
+            "rpg": round(int(team_row["total_rebounds"]) / games_count, 1),
+            "titles": len(title_seasons),
+            "title_seasons": title_seasons,
+            "top_players": top_players,
+            "seasons": seasons,
+        }
+    finally:
         cursor.close()
         conn.close()
-        return None
-
-    cursor.execute(
-        """
-        SELECT p.display_name
-        FROM fact_player_game_stats fps
-        JOIN dim_player p ON p.player_key = fps.player_key
-        WHERE fps.team_key = %s
-        GROUP BY p.player_key, p.display_name
-        ORDER BY SUM(fps.points) DESC, p.display_name ASC
-        LIMIT 1
-        """,
-        (team_id,),
-    )
-    top_scorer_row = cursor.fetchone()
-
-    cursor.execute(
-        """
-        SELECT p.display_name
-        FROM fact_player_game_stats fps
-        JOIN dim_player p ON p.player_key = fps.player_key
-        WHERE fps.team_key = %s
-        GROUP BY p.player_key, p.display_name
-        ORDER BY SUM(fps.assists) DESC, p.display_name ASC
-        LIMIT 1
-        """,
-        (team_id,),
-    )
-    top_assist_row = cursor.fetchone()
-
-    cursor.close()
-    conn.close()
-
-    detail_id, tricode, city, name, games_count, players_count, total_points, years_csv = team_row
-    return {
-        "id": detail_id,
-        "tricode": tricode,
-        "city": city,
-        "name": name,
-        "full_name": format_team_display_name(city, name),
-        "games_count": games_count,
-        "players_count": players_count,
-        "total_points": total_points,
-        "years": [year for year in years_csv.split(",") if year],
-        "top_scorer": top_scorer_row[0] if top_scorer_row else "No data",
-        "top_assist": top_assist_row[0] if top_assist_row else "No data",
-    }
 
 
 def mysql_year_query():
