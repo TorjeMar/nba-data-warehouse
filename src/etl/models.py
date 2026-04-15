@@ -47,6 +47,7 @@ class WarehouseRecord:
     fouls_personal: int
     points: int
     plus_minus_points: int
+    game_type: str | None = None
     season_label: str | None = None
     game_date: datetime | None = None
     matchup_label: str | None = None
@@ -86,6 +87,7 @@ class WarehouseRecord:
     def mongodb_document(self) -> dict[str, Any]:
         return {
             "sourceGameId": self.source_game_id,
+            "gameType": self.game_type,
             "seasonLabel": self.season_label,
             "gameDate": self.game_date,
             "team": {
@@ -140,6 +142,7 @@ class WarehouseRecord:
         date_key = int(game_date.strftime("%Y%m%d")) if game_date else None
         return {
             "sourceGameId": self.source_game_id,
+            "gameType": self.game_type,
             "sourceTeamId": self.source_team_id,
             "teamCity": self.team_city,
             "teamName": self.team_name,

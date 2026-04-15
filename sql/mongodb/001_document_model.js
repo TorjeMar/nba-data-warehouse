@@ -18,6 +18,9 @@ db.createCollection("player_game_stats", {
           bsonType: "string",
           description: "Source game identifier"
         },
+        gameType: {
+          bsonType: ["string", "null"]
+        },
         seasonLabel: {
           bsonType: ["string", "null"]
         },
