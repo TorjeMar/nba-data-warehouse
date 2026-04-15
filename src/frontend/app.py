@@ -8,7 +8,7 @@ from flask import Flask, jsonify, render_template
 from src.frontend.backend.constants import VALID_NBA_TRICODES
 from src.frontend.backend.routes import register_routes
 from src.frontend.backend.season_payloads import format_team_display_name
-from src.frontend.stream_cache import StreamStateCache
+from src.frontend.backend.stream_cache import StreamStateCache
 
 
 load_dotenv()
