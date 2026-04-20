@@ -6,9 +6,9 @@ from src.clients.neo4j_client import connect_neo4j
 from src.frontend.backend.season_payloads import build_season_payload, format_team_display_name
 
 
-REGULAR_SEASON_WHERE = "g.sourceGameId STARTS WITH '002'"
+REGULAR_SEASON_WHERE = "g.gameType = 'regular_season'"
 
-PLAYOFF_WHERE = "g.sourceGameId STARTS WITH '004'"
+PLAYOFF_WHERE = "g.gameType = 'playoffs'"
 
 
 def neo4j_team_query():
@@ -68,7 +68,7 @@ def neo4j_team_query():
         title_result = session.run(
             """
             MATCH (g:Game)<-[played:PLAYED_IN]-(:Player)
-            WHERE g.sourceGameId STARTS WITH '004'
+            WHERE g.gameType = 'playoffs'
               AND substring(g.sourceGameId, 7, 1) = '4'
             WITH g.seasonLabel AS season_label, g.sourceGameId AS source_game_id,
                  played.sourceTeamId AS team_id, sum(played.points) AS team_points
@@ -184,7 +184,7 @@ def neo4j_get_team_detail_query(team_id) -> dict[str, object] | None:
             """
             MATCH (team:Team {sourceTeamId: $team_id})
             MATCH (g:Game)<-[played:PLAYED_IN {sourceTeamId: team.sourceTeamId}]-(:Player)
-            WHERE g.sourceGameId STARTS WITH '004'
+            WHERE g.gameType = 'playoffs'
               AND substring(g.sourceGameId, 7, 1) = '4'
             WITH g.seasonLabel AS season_label, g.sourceGameId AS source_game_id,
                  sum(played.points) AS team_points

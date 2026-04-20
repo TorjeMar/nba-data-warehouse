@@ -6,13 +6,27 @@ from src.clients.mongodb_client import connect_mongodb
 from src.frontend.backend.season_payloads import build_season_payload, format_team_display_name
 
 
+FINALS_SOURCE_GAME_EXPR = {
+    "$eq": [
+        {
+            "$substrCP": [
+                {"$ifNull": ["$sourceGameId", ""]},
+                7,
+                1,
+            ]
+        },
+        "4",
+    ]
+}
+
+
 def mongodb_team_query():
     db = connect_mongodb()
 
     team_pipeline = [
         {
             "$match": {
-                "sourceGameId": {"$regex": "^002"},
+                "gameType": "regular_season",
             }
         },
         {
@@ -42,7 +56,7 @@ def mongodb_team_query():
     top_scorer_pipeline = [
         {
             "$match": {
-                "sourceGameId": {"$regex": "^002"},
+                "gameType": "regular_season",
             }
         },
         {
@@ -73,7 +87,7 @@ def mongodb_team_query():
     top_assist_pipeline = [
         {
             "$match": {
-                "sourceGameId": {"$regex": "^002"},
+                "gameType": "regular_season",
             }
         },
         {
@@ -110,7 +124,7 @@ def mongodb_team_query():
 
     # Championship wins: finals games (round char at index 7 == '4')
     titles_pipeline = [
-        {"$match": {"gameType": "playoffs", "sourceGameId": {"$regex": "^.{7}4"}}},
+        {"$match": {"gameType": "playoffs", "$expr": FINALS_SOURCE_GAME_EXPR}},
         {
             "$group": {
                 "_id": {
@@ -258,7 +272,7 @@ def mongodb_get_team_detail_query(team_id) -> dict[str, object] | None:
             "$match": {
                 "gameType": "playoffs",
                 "team.sourceTeamId": team_id,
-                "sourceGameId": {"$regex": "^.{7}4"},
+                "$expr": FINALS_SOURCE_GAME_EXPR,
             }
         },
         {

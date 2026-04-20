@@ -20,6 +20,7 @@ DEFAULT_BROKER = "localhost:29092"
 DEFAULT_GROUP_ID = "mongodb-loader"
 DEFAULT_BATCH_SIZE = 5000
 DEFAULT_FLUSH_INTERVAL_SECONDS = 5.0
+DEFAULT_POLL_TIMEOUT_MS = 1000
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,6 +31,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
     parser.add_argument("--flush-interval-seconds", type=float, default=DEFAULT_FLUSH_INTERVAL_SECONDS)
     parser.add_argument("--limit", type=int, default=None, help="Optional maximum number of messages to consume.")
+    parser.add_argument("--poll-timeout-ms", type=int, default=DEFAULT_POLL_TIMEOUT_MS)
+    parser.add_argument(
+        "--idle-polls-before-exit",
+        type=int,
+        default=None,
+        help="Exit after this many consecutive empty polls.",
+    )
     return parser.parse_args()
 
 
@@ -68,6 +76,8 @@ def run_consumer(
     group_id: str,
     batch_size: int,
     flush_interval_seconds: float,
+    poll_timeout_ms: int = DEFAULT_POLL_TIMEOUT_MS,
+    idle_polls_before_exit: int | None = None,
     limit: int | None = None,
 ) -> dict[str, int]:
     consumer = build_consumer(topic, broker, group_id)
@@ -82,6 +92,7 @@ def run_consumer(
         "flushes": 0,
     }
     last_flush = time.monotonic()
+    idle_polls = 0
 
     progress = tqdm(
         total=limit,
@@ -98,7 +109,7 @@ def run_consumer(
 
     try:
         while limit is None or stats["consumed"] < limit:
-            records = consumer.poll(timeout_ms=1000, max_records=max(1, batch_size))
+            records = consumer.poll(timeout_ms=poll_timeout_ms, max_records=max(1, batch_size))
             received_any = False
 
             for _, messages in records.items():
@@ -119,6 +130,11 @@ def run_consumer(
                         f"loaded={stats['loaded']} batch={len(batch)} flushes={stats['flushes']} invalid={stats['invalid']}",
                         refresh=False,
                     )
+
+            if received_any:
+                idle_polls = 0
+            else:
+                idle_polls += 1
 
             now = time.monotonic()
             should_flush = len(batch) >= batch_size or (batch and now - last_flush >= flush_interval_seconds)
@@ -145,6 +161,9 @@ def run_consumer(
                     refresh=False,
                 )
 
+            if not received_any and not batch and idle_polls_before_exit is not None and idle_polls >= idle_polls_before_exit:
+                break
+
         if batch:
             flush_batch(database, batch, consumer.commit, stats)
 
@@ -169,6 +188,8 @@ def main() -> None:
         group_id=args.group_id,
         batch_size=args.batch_size,
         flush_interval_seconds=args.flush_interval_seconds,
+        poll_timeout_ms=args.poll_timeout_ms,
+        idle_polls_before_exit=args.idle_polls_before_exit,
         limit=args.limit,
     )
     print(json.dumps(stats, indent=2, sort_keys=True))

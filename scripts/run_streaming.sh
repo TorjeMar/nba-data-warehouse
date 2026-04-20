@@ -68,15 +68,17 @@ Usage:
   scripts/run_streaming.sh produce [producer args...]
   scripts/run_streaming.sh consume [consumer args...]
   scripts/run_streaming.sh demo [producer args...]
-  scripts/run_streaming.sh fanout [--limit N] [producer args...]
-  scripts/run_streaming.sh nightly [nightly args...]
+  scripts/run_streaming.sh fanout [--backend <name>] [--limit N] [producer args...]
+  scripts/run_streaming.sh nightly [--backend <name>] [nightly args...]
 
 Examples:
   scripts/run_streaming.sh produce --limit 100
   scripts/run_streaming.sh consume --backend mysql --limit 100
   scripts/run_streaming.sh demo --limit 100
   scripts/run_streaming.sh fanout --limit 100 --input data/box_scores.jsonl
+  scripts/run_streaming.sh fanout --backend neo4j --limit 100 --input data/box_scores.jsonl
   scripts/run_streaming.sh nightly --source-backend mysql --start-year 2024 --end-year 2026
+  scripts/run_streaming.sh nightly --backend neo4j --source-backend neo4j --start-year 2025 --end-year 2025
 EOF
 }
 
@@ -85,9 +87,98 @@ run_producer() {
   uv run python -m src.etl.stream_producer "$@"
 }
 
+consumer_module_for_backend() {
+  local backend=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --backend)
+        if [[ $# -lt 2 ]]; then
+          echo "Missing value for --backend" >&2
+          exit 1
+        fi
+        backend="$2"
+        shift 2
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+
+  case "$backend" in
+    mysql)
+      echo "src.etl.stream_consumer_mysql"
+      ;;
+    mongodb)
+      echo "src.etl.stream_consumer_mongodb"
+      ;;
+    neo4j)
+      echo "src.etl.stream_consumer_neo4j"
+      ;;
+    *)
+      echo "Unknown or missing backend: '$backend'" >&2
+      exit 1
+      ;;
+  esac
+}
+
 run_consumer() {
   load_env
-  uv run python -m src.etl.stream_consumer "$@"
+  local module
+  module="$(consumer_module_for_backend "$@")"
+  local consumer_args=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --backend)
+        if [[ $# -lt 2 ]]; then
+          echo "Missing value for --backend" >&2
+          exit 1
+        fi
+        shift 2
+        ;;
+      *)
+        consumer_args+=("$1")
+        shift
+        ;;
+    esac
+  done
+  uv run python -m "$module" "${consumer_args[@]}"
+}
+
+consumer_group_for_backend() {
+  case "$1" in
+    mysql)
+      echo "mysql"
+      ;;
+    mongodb)
+      echo "mongodb"
+      ;;
+    neo4j)
+      echo "neo4j"
+      ;;
+    *)
+      echo "Unknown backend: '$1'" >&2
+      exit 1
+      ;;
+  esac
+}
+
+docker_service_for_backend() {
+  case "$1" in
+    mysql)
+      echo "mysql"
+      ;;
+    mongodb)
+      echo "mongodb"
+      ;;
+    neo4j)
+      echo "neo4j"
+      ;;
+    *)
+      echo "Unknown backend: '$1'" >&2
+      exit 1
+      ;;
+  esac
 }
 
 run_demo() {
@@ -99,13 +190,20 @@ run_demo() {
 
 run_fanout() {
   load_env
-  docker compose up -d zookeeper broker mysql mongodb neo4j
-  wait_for_services
 
   local limit="100"
+  local backend="all"
   local producer_args=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
+      --backend)
+        if [[ $# -lt 2 ]]; then
+          echo "Missing value for --backend"
+          exit 1
+        fi
+        backend="$2"
+        shift 2
+        ;;
       --limit)
         if [[ $# -lt 2 ]]; then
           echo "Missing value for --limit"
@@ -122,29 +220,70 @@ run_fanout() {
     esac
   done
 
-  uv run python -m src.etl.stream_consumer --backend mysql --group-id stream-mysql --limit "$limit" &
-  local mysql_pid=$!
-  uv run python -m src.etl.stream_consumer --backend mongodb --group-id stream-mongodb --limit "$limit" &
-  local mongodb_pid=$!
-  uv run python -m src.etl.stream_consumer --backend neo4j --group-id stream-neo4j --limit "$limit" &
-  local neo4j_pid=$!
+  local services=(zookeeper broker)
+  case "$backend" in
+    all)
+      services+=(mysql mongodb neo4j)
+      ;;
+    mysql|mongodb|neo4j)
+      services+=("$(docker_service_for_backend "$backend")")
+      ;;
+    *)
+      echo "Unknown backend: '$backend'" >&2
+      exit 1
+      ;;
+  esac
 
-  trap 'kill "${mysql_pid-}" "${mongodb_pid-}" "${neo4j_pid-}" >/dev/null 2>&1 || true' EXIT
+  docker compose up -d "${services[@]}"
+  wait_for_kafka
+  case "$backend" in
+    all)
+      wait_for_mysql
+      wait_for_mongodb
+      wait_for_neo4j
+      ;;
+    mysql)
+      wait_for_mysql
+      ;;
+    mongodb)
+      wait_for_mongodb
+      ;;
+    neo4j)
+      wait_for_neo4j
+      ;;
+  esac
+
+  local pids=()
+  case "$backend" in
+    all)
+      uv run python -m src.etl.stream_consumer_mysql --group-id stream-mysql --limit "$limit" &
+      pids+=("$!")
+      uv run python -m src.etl.stream_consumer_mongodb --group-id stream-mongodb --limit "$limit" &
+      pids+=("$!")
+      uv run python -m src.etl.stream_consumer_neo4j --group-id stream-neo4j --limit "$limit" &
+      pids+=("$!")
+      ;;
+    mysql|mongodb|neo4j)
+      uv run python -m "src.etl.stream_consumer_${backend}" --group-id "stream-$(consumer_group_for_backend "$backend")" --limit "$limit" &
+      pids+=("$!")
+      ;;
+  esac
+
+  trap 'kill "${pids[@]}" >/dev/null 2>&1 || true' EXIT
 
   run_producer "${producer_args[@]}"
 
-  wait "$mysql_pid"
-  wait "$mongodb_pid"
-  wait "$neo4j_pid"
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+  done
   trap - EXIT
 }
 
 run_nightly() {
   load_env
-  docker compose up -d zookeeper broker mysql mongodb neo4j
-  wait_for_services
 
   local source_backend="mysql"
+  local backend="all"
   local topic="player-game-records"
   local broker="localhost:29092"
   local idle_polls_before_exit="10"
@@ -153,6 +292,14 @@ run_nightly() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
+      --backend)
+        if [[ $# -lt 2 ]]; then
+          echo "Missing value for --backend"
+          exit 1
+        fi
+        backend="$2"
+        shift 2
+        ;;
       --source-backend)
         source_backend="$2"
         nightly_args+=("$1" "$2")
@@ -183,34 +330,76 @@ run_nightly() {
     esac
   done
 
-  uv run python -m src.etl.stream_consumer \
-    --backend mysql \
-    --group-id nightly-mysql \
-    --topic "$topic" \
-    --broker "$broker" \
-    --poll-timeout-ms "$poll_timeout_ms" \
-    --idle-polls-before-exit "$idle_polls_before_exit" &
-  local mysql_pid=$!
+  local services=(zookeeper broker)
+  case "$backend" in
+    all)
+      services+=(mysql mongodb neo4j)
+      ;;
+    mysql|mongodb|neo4j)
+      services+=("$(docker_service_for_backend "$backend")")
+      ;;
+    *)
+      echo "Unknown backend: '$backend'" >&2
+      exit 1
+      ;;
+  esac
 
-  uv run python -m src.etl.stream_consumer \
-    --backend mongodb \
-    --group-id nightly-mongodb \
-    --topic "$topic" \
-    --broker "$broker" \
-    --poll-timeout-ms "$poll_timeout_ms" \
-    --idle-polls-before-exit "$idle_polls_before_exit" &
-  local mongodb_pid=$!
+  docker compose up -d "${services[@]}"
+  wait_for_kafka
+  case "$backend" in
+    all)
+      wait_for_mysql
+      wait_for_mongodb
+      wait_for_neo4j
+      ;;
+    mysql)
+      wait_for_mysql
+      ;;
+    mongodb)
+      wait_for_mongodb
+      ;;
+    neo4j)
+      wait_for_neo4j
+      ;;
+  esac
 
-  uv run python -m src.etl.stream_consumer \
-    --backend neo4j \
-    --group-id nightly-neo4j \
-    --topic "$topic" \
-    --broker "$broker" \
-    --poll-timeout-ms "$poll_timeout_ms" \
-    --idle-polls-before-exit "$idle_polls_before_exit" &
-  local neo4j_pid=$!
+  local pids=()
+  case "$backend" in
+    all)
+      uv run python -m src.etl.stream_consumer_mysql \
+        --group-id nightly-mysql \
+        --topic "$topic" \
+        --broker "$broker" \
+        --poll-timeout-ms "$poll_timeout_ms" \
+        --idle-polls-before-exit "$idle_polls_before_exit" &
+      pids+=("$!")
+      uv run python -m src.etl.stream_consumer_mongodb \
+        --group-id nightly-mongodb \
+        --topic "$topic" \
+        --broker "$broker" \
+        --poll-timeout-ms "$poll_timeout_ms" \
+        --idle-polls-before-exit "$idle_polls_before_exit" &
+      pids+=("$!")
+      uv run python -m src.etl.stream_consumer_neo4j \
+        --group-id nightly-neo4j \
+        --topic "$topic" \
+        --broker "$broker" \
+        --poll-timeout-ms "$poll_timeout_ms" \
+        --idle-polls-before-exit "$idle_polls_before_exit" &
+      pids+=("$!")
+      ;;
+    mysql|mongodb|neo4j)
+      uv run python -m "src.etl.stream_consumer_${backend}" \
+        --group-id "nightly-$(consumer_group_for_backend "$backend")" \
+        --topic "$topic" \
+        --broker "$broker" \
+        --poll-timeout-ms "$poll_timeout_ms" \
+        --idle-polls-before-exit "$idle_polls_before_exit" &
+      pids+=("$!")
+      ;;
+  esac
 
-  trap 'kill "${mysql_pid-}" "${mongodb_pid-}" "${neo4j_pid-}" >/dev/null 2>&1 || true' EXIT
+  trap 'kill "${pids[@]}" >/dev/null 2>&1 || true' EXIT
 
   uv run python -m src.pipelines.stream_new_games \
     --source-backend "$source_backend" \
@@ -218,9 +407,9 @@ run_nightly() {
     --broker "$broker" \
     "${nightly_args[@]}"
 
-  wait "$mysql_pid"
-  wait "$mongodb_pid"
-  wait "$neo4j_pid"
+  for pid in "${pids[@]}"; do
+    wait "$pid"
+  done
   trap - EXIT
 }
 

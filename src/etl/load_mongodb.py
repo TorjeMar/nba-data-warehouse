@@ -5,9 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Iterable
 
-from pymongo import InsertOne, UpdateOne
+from pymongo import UpdateOne
 from pymongo.database import Database
-from pymongo.errors import BulkWriteError
 
 from src.etl.models import WarehouseRecord
 from dotenv import load_dotenv
@@ -15,33 +14,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def load_mongodb_records(database: Database, records: Iterable[WarehouseRecord]) -> int:
-    """Insert-only load. Existing rows and duplicate keys are ignored."""
-    operations = []
-    seen_keys: set[tuple[str, int, int]] = set()
+    """Upsert warehouse rows by natural key."""
+    deduped_records: dict[tuple[str, int, int], WarehouseRecord] = {}
 
     for record in records:
         key = (record.source_game_id, record.source_team_id, record.source_person_id)
-        if key in seen_keys:
-            # Keep the first row and ignore later duplicates in this batch.
-            continue
-        seen_keys.add(key)
+        # Keep the latest occurrence in the batch so restreamed rows refresh the document.
+        deduped_records[key] = record
 
-        document = record.mongodb_document()
-        operations.append(InsertOne(document))
-
-    if not operations:
-        return 0
-
-    try:
-        result = database.player_game_stats.bulk_write(operations, ordered=False)
-        return result.inserted_count
-    except BulkWriteError as exc:
-        details = exc.details or {}
-        write_errors = details.get("writeErrors", [])
-        non_duplicate_errors = [err for err in write_errors if err.get("code") != 11000]
-        if non_duplicate_errors:
-            raise
-        return int(details.get("nInserted", 0))
+    return update_mongodb_records(database, deduped_records.values())
 
 
 def update_mongodb_records(database: Database, records: Iterable[WarehouseRecord]) -> int:

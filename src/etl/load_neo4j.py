@@ -130,7 +130,7 @@ def load_neo4j_records(driver: Driver, records: Iterable[WarehouseRecord]) -> in
     teams = _dedup(_pick(rows, "sourceTeamId", "teamName", "teamCity", "teamTricode", "teamSlug"), "sourceTeamId")
     players = _dedup(_pick(rows, "sourcePersonId", "firstName", "familyName", "displayName", "nameInitial", "playerSlug", "jerseyNumber"), "sourcePersonId")
     positions = _dedup([{"positionCode": r["positionCode"] or ""} for r in rows], "positionCode")
-    games = _dedup(_pick(rows, "sourceGameId", "seasonLabel", "matchupLabel"), "sourceGameId")
+    games = _dedup(_pick(rows, "sourceGameId", "gameType", "seasonLabel", "matchupLabel"), "sourceGameId")
     dates = _dedup(
         [_pick([r], "dateKey", "gameDate", "yearNum", "monthNum", "monthName", "quarterNum", "dayOfMonth", "dayOfWeekNum", "dayOfWeekName", "isWeekend")[0]
          for r in rows if r["dateKey"] and r["gameDate"]],
