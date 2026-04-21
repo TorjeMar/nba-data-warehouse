@@ -1,7 +1,7 @@
 [project]
-name = "v1"
+name = "ikt453-data-warehouse"
 version = "0.1.0"
-description = "Add your description here"
+description = "Basketball box score data warehouse with MySQL, MongoDB, Neo4j, and Kafka pipelines."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -14,4 +14,11 @@ dependencies = [
     "python-dotenv==1.2.2",
     "tqdm==4.67.3",
     "pytest>=8.0.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = [
+    "integration: tests that require live external services",
 ]

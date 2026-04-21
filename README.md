@@ -22,7 +22,6 @@ Important detail:
 - the ETL layer flattens each game payload into one player stat line per row
 
 Reference files:
-- [notes/data.md](notes/data.md#L1)
 - [data.example/entry.json](data.example/entry.json#L1)
 
 ## Project Structure
@@ -34,8 +33,8 @@ Reference files:
 - `src/clients/`: Python connection helpers
 - `src/etl/`: shared extraction and transformation code
 - `src/pipelines/`: CLI entry points for loading data
-- `docs/`: architecture and implementation notes
 - `scripts/`: helper scripts for dataset acquisition
+- `tests/`: unit and integration tests
 
 ## Infrastructure
 
@@ -69,6 +68,14 @@ Current SDK dependencies:
 - `mysql-connector-python`
 - `pymongo`
 - `neo4j`
+
+Run tests:
+
+```bash
+uv run pytest
+```
+
+MySQL integration tests are skipped unless `TEST_MYSQL_E2E=1` is set.
 
 ## Warehouse Designs
 
@@ -189,9 +196,8 @@ scripts/run_streaming.sh produce --limit 100 --input data/box_scores.jsonl
 ## Documentation
 
 Documentation index:
-- [docs/README.md](docs/README.md#L1)
-- [docs/architecture/README.md](docs/architecture/README.md#L1)
 - [src/etl/README.md](src/etl/README.md#L1)
+- [tests/README.md](tests/README.md#L1)
 
 ## Course Notes
 
