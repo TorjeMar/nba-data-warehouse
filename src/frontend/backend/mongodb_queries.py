@@ -271,39 +271,27 @@ def mongodb_get_team_detail_query(team_id) -> dict[str, object] | None:
         {
             "$match": {
                 "gameType": "playoffs",
-                "team.sourceTeamId": team_id,
                 "$expr": FINALS_SOURCE_GAME_EXPR,
             }
         },
         {
             "$group": {
-                "_id": {"seasonLabel": "$seasonLabel", "sourceGameId": "$sourceGameId"},
+                "_id": {
+                    "seasonLabel": "$seasonLabel",
+                    "sourceGameId": "$sourceGameId",
+                    "teamId": "$team.sourceTeamId",
+                },
                 "team_points": {"$sum": "$stats.points"},
             }
         },
+        {"$sort": {"_id.sourceGameId": 1, "team_points": -1}},
         {
-            "$lookup": {
-                "from": "player_game_stats",
-                "let": {"gid": "$_id.sourceGameId", "sl": "$_id.seasonLabel"},
-                "pipeline": [
-                    {
-                        "$match": {
-                            "$expr": {
-                                "$and": [
-                                    {"$eq": ["$sourceGameId", "$$gid"]},
-                                    {"$eq": ["$seasonLabel", "$$sl"]},
-                                    {"$ne": ["$team.sourceTeamId", team_id]},
-                                ]
-                            }
-                        }
-                    },
-                    {"$group": {"_id": None, "opp_points": {"$sum": "$stats.points"}}},
-                ],
-                "as": "opp",
+            "$group": {
+                "_id": {"seasonLabel": "$_id.seasonLabel", "sourceGameId": "$_id.sourceGameId"},
+                "winner_team_id": {"$first": "$_id.teamId"},
             }
         },
-        {"$unwind": "$opp"},
-        {"$match": {"$expr": {"$gt": ["$team_points", "$opp.opp_points"]}}},
+        {"$match": {"winner_team_id": team_id}},
         {"$group": {"_id": "$_id.seasonLabel", "wins": {"$sum": 1}}},
         {"$match": {"wins": {"$gte": 4}}},
         {"$sort": {"_id": -1}},
