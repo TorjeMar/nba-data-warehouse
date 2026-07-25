@@ -1,62 +1,113 @@
-# IKT453 Data Warehousing Project
+# NBA Data Warehouse
 
-This repository contains a basketball box score data warehousing project with three backend targets:
-- MySQL for the relational star schema warehouse
-- MongoDB for the document-oriented alternative
-- Neo4j for the graph-oriented alternative
+A data engineering project implementing an ETL pipeline for loading NBA box score data into relational, document, and graph databases. The project supports MySQL, MongoDB, Neo4j, and Kafka-based streaming through a shared Python ETL pipeline.
 
-The current implementation includes:
-- Dockerized database infrastructure
-- MySQL star schema and summary-table DDL
-- MongoDB document model, indexes, and aggregation examples
-- Neo4j constraints, graph model, load shape, and analytical queries
-- a shared Python ETL pipeline that transforms the source dataset for all three backends
+## Tech Stack
+
+- Python
+- MySQL
+- MongoDB
+- Neo4j
+- Kafka
+- Docker
+
+## Features
+
+- Shared Python ETL pipeline for multiple database backends
+- Relational data warehouse implemented in MySQL
+- Document-oriented warehouse implemented in MongoDB
+- Graph database implementation using Neo4j
+- Kafka-based streaming pipeline for scalable data ingestion
+- Dockerized development environment
+- Automated tests for ETL components
 
 ## Dataset
 
-The main source file is `data/box_scores.jsonl`.
+The primary dataset is located at:
 
-Important detail:
-- this is not row-oriented JSONL
-- each line is a game-level, column-oriented payload
-- the ETL layer flattens each game payload into one player stat line per row
+```
+data/box_scores.jsonl
+```
 
-Reference files:
-- [data.example/entry.json](data.example/entry.json#L1)
+The dataset stores NBA box score information in a game-oriented JSONL format. During the ETL process, each game is transformed into individual player-level statistics before loading into the selected backend.
 
-## Project Structure
+Reference example:
 
-- `docker-compose.yml`: local database stack
-- `sql/mysql/`: MySQL warehouse schema and summary tables
-- `sql/mongodb/`: MongoDB collection model, indexes, and aggregations
-- `sql/neo4j/`: Neo4j constraints, model, analytics, and load pattern
-- `src/clients/`: Python connection helpers
-- `src/etl/`: shared extraction and transformation code
-- `src/pipelines/`: CLI entry points for loading data
-- `scripts/`: helper scripts for dataset acquisition
-- `tests/`: unit and integration tests
+```
+data.example/entry.json
+```
 
-## Infrastructure
+---
 
-Start the database services with:
+# Project Structure
+
+```
+.
+├── docker-compose.yml
+├── sql
+│   ├── mysql
+│   ├── mongodb
+│   └── neo4j
+├── src
+│   ├── clients
+│   ├── etl
+│   └── pipelines
+├── scripts
+├── tests
+└── data
+```
+
+Main folders:
+
+- **sql/mysql/** – MySQL warehouse schema
+- **sql/mongodb/** – MongoDB collections, indexes and aggregations
+- **sql/neo4j/** – Neo4j graph model and analytical queries
+- **src/etl/** – Shared extraction and transformation logic
+- **src/pipelines/** – CLI entry points
+- **tests/** – Unit and integration tests
+
+---
+
+# Infrastructure
+
+Start all services:
 
 ```bash
 docker compose up -d
 ```
 
-Access points:
-- MySQL admin: `http://localhost:8080`
-- MongoDB admin: `http://localhost:8081`
-- Neo4j browser: `http://localhost:7474`
+Service endpoints:
 
-Default service ports:
-- MySQL: `3306`
-- MongoDB: `27017`
-- Neo4j Bolt: `7687`
+| Service | Address |
+|---------|----------|
+| MySQL Admin | http://localhost:8080 |
+| MongoDB Admin | http://localhost:8081 |
+| Neo4j Browser | http://localhost:7474 |
 
-The compose stack expects `DB_USERNAME` and `DB_PASSWORD` in `.env`.
+Default ports:
 
-## Python Setup
+| Database | Port |
+|----------|------|
+| MySQL | 3306 |
+| MongoDB | 27017 |
+| Neo4j Bolt | 7687 |
+
+Environment variables:
+
+```
+DB_USERNAME
+DB_PASSWORD
+```
+
+stored in:
+
+```
+.env
+```
+
+---
+
+# Python Setup
 
 Install dependencies:
 
@@ -64,141 +115,179 @@ Install dependencies:
 uv sync
 ```
 
-Current SDK dependencies:
-- `mysql-connector-python`
-- `pymongo`
-- `neo4j`
-
 Run tests:
 
 ```bash
 uv run pytest
 ```
 
-MySQL integration tests are skipped unless `TEST_MYSQL_E2E=1` is set.
-
-## Warehouse Designs
-
-### MySQL
-
-Main schema files:
-- [001_star_schema.sql](sql/mysql/001_star_schema.sql#L1)
-- [002_summary_tables.sql](sql/mysql/002_summary_tables.sql#L1)
-
-Design grain:
-- one player stat line for one game and one team
-
-Core tables:
-- `dim_team`
-- `dim_player`
-- `dim_position`
-- `dim_game`
-- `dim_date`
-- `fact_player_game_stats`
-
-### MongoDB
-
-Main design files:
-- [001_document_model.js](sql/mongodb/001_document_model.js#L1)
-- [002_indexes.js](sql/mongodb/002_indexes.js#L1)
-- [003_aggregations.js](sql/mongodb/003_aggregations.js#L1)
-
-Design grain:
-- one document per player stat line for one game and one team
-
-Primary collection:
-- `player_game_stats`
-
-### Neo4j
-
-Main design files:
-- [001_constraints.cypher](sql/neo4j/001_constraints.cypher#L1)
-- [002_graph_model.cypher](sql/neo4j/002_graph_model.cypher#L1)
-- [003_analytics.cypher](sql/neo4j/003_analytics.cypher#L1)
-- [004_load_shape.cypher](sql/neo4j/004_load_shape.cypher#L1)
-
-Design grain:
-- one `PLAYED_IN` relationship per player, game, and team
-
-## ETL
-
-Main pipeline:
-- [load_box_scores.py](src/pipelines/load_box_scores.py#L1)
-
-Dry-run the transform layer without touching any database:
+MySQL integration tests require:
 
 ```bash
-python -m src.pipelines.load_box_scores --backend mysql --dry-run --limit 100
+TEST_MYSQL_E2E=1
 ```
 
-Load a backend:
+---
+
+# Data Warehouse Designs
+
+## MySQL
+
+Implements a traditional star schema.
+
+Main tables:
+
+- dim_team
+- dim_player
+- dim_position
+- dim_game
+- dim_date
+- fact_player_game_stats
+
+Schema:
+
+```
+sql/mysql/
+```
+
+---
+
+## MongoDB
+
+Implements a document-oriented warehouse.
+
+Primary collection:
+
+```
+player_game_stats
+```
+
+Contains:
+
+- indexes
+- aggregation pipelines
+- validation rules
+
+---
+
+## Neo4j
+
+Implements a graph-based warehouse.
+
+Core relationship:
+
+```
+(Player)-[:PLAYED_IN]->(Game)
+```
+
+Includes:
+
+- constraints
+- graph model
+- analytical Cypher queries
+
+---
+
+# ETL Pipeline
+
+Dry-run:
+
+```bash
+python -m src.pipelines.load_box_scores \
+    --backend mysql \
+    --dry-run \
+    --limit 100
+```
+
+Load MySQL:
 
 ```bash
 python -m src.pipelines.load_box_scores --backend mysql
+```
+
+Load MongoDB:
+
+```bash
 python -m src.pipelines.load_box_scores --backend mongodb
+```
+
+Load Neo4j:
+
+```bash
 python -m src.pipelines.load_box_scores --backend neo4j
 ```
 
-Load all backends:
+Load every backend:
 
 ```bash
 python -m src.pipelines.load_box_scores --backend all
 ```
 
-Optional flags:
-- `--input data/box_scores.jsonl`
-- `--batch-size 1000`
-- `--limit 500`
+Useful options:
 
-Important assumptions:
-- game date and season metadata are not present in the current source file, so those warehouse fields remain nullable until enriched upstream
-- MySQL loading assumes the schema SQL has already been applied
-- Neo4j loading assumes constraints and base model scripts have already been applied
-- MongoDB loading assumes the target database exists and the validator/index scripts are applied or will be applied separately
-
-## Streaming Architecture
-Containerized streaming components:
-- RDBMS: MySQL
-- NoSQL: MongoDB and Neo4j
-- Stream infrastructure: Kafka broker and ZooKeeper
-
-Start only the required services:
-
-```bash
-docker compose up -d zookeeper broker mysql mongodb neo4j
+```
+--input
+--batch-size
+--limit
 ```
 
-Project-native fanout stream demo:
+---
+
+# Streaming Architecture
+
+Streaming is implemented using Apache Kafka.
+
+Components:
+
+- Kafka Broker
+- ZooKeeper
+- MySQL
+- MongoDB
+- Neo4j
+
+Start services:
 
 ```bash
-scripts/run_streaming.sh fanout --limit 100 --input data/box_scores.jsonl
+docker compose up -d \
+    zookeeper \
+    broker \
+    mysql \
+    mongodb \
+    neo4j
 ```
 
-This starts one producer and three consumer groups (MySQL, MongoDB, Neo4j), so all warehouse backends consume the same Kafka stream independently.
-
-You can also run each part separately:
+Run streaming pipeline:
 
 ```bash
-scripts/run_streaming.sh consume --backend mysql --group-id mysql-cg --limit 100
-scripts/run_streaming.sh consume --backend mongodb --group-id mongodb-cg --limit 100
-scripts/run_streaming.sh consume --backend neo4j --group-id neo4j-cg --limit 100
-scripts/run_streaming.sh produce --limit 100 --input data/box_scores.jsonl
+scripts/run_streaming.sh fanout \
+    --limit 100 \
+    --input data/box_scores.jsonl
 ```
 
-## Suggested Execution Order
+The producer publishes NBA player statistics to Kafka while independent consumer groups load data into each warehouse backend.
 
-1. Start the database containers.
-2. Apply the schema/model files for the backend you want to test.
+---
+
+# Getting Started
+
+1. Clone the repository.
+2. Start the Docker services.
 3. Install Python dependencies.
-4. Run the ETL pipeline with `--dry-run`.
-5. Run the ETL pipeline against the selected backend.
+4. Apply the database schema for the selected backend.
+5. Run the ETL pipeline.
 
-## Documentation
+---
 
-Documentation index:
-- [src/etl/README.md](src/etl/README.md#L1)
-- [tests/README.md](tests/README.md#L1)
+# Authors
 
-## Course Notes
+Developed as a university group project by:
 
-The original course brief is still part of the repository history and project context, but the root README is now focused on the actual implementation in this repository.
+- Torje Martinsen
+- Abraham Korh
+- Jørgen Haugan Strand
+
+---
+
+# License
+
+This repository is provided for educational and portfolio purposes.
