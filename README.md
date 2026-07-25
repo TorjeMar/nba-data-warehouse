@@ -2,6 +2,16 @@
 
 A data engineering project implementing an ETL pipeline for loading NBA box score data into relational, document, and graph databases. The project supports MySQL, MongoDB, Neo4j, and Kafka-based streaming through a shared Python ETL pipeline.
 
+# Authors
+
+Developed as a university group project by:
+
+- Torje Martinsen
+- Abraham Korh
+- Jørgen Haugan Strand
+
+---
+
 ## Tech Stack
 
 - Python
@@ -275,16 +285,6 @@ The producer publishes NBA player statistics to Kafka while independent consumer
 3. Install Python dependencies.
 4. Apply the database schema for the selected backend.
 5. Run the ETL pipeline.
-
----
-
-# Authors
-
-Developed as a university group project by:
-
-- Torje Martinsen
-- Abraham Korh
-- Jørgen Haugan Strand
 
 ---
 
